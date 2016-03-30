@@ -37,6 +37,11 @@ set (PLOVER_HS_SRCS
 set (PLOVER_UNITS
   prelude
   qr
+  util
+  filter
+  operations
+  rand
+  plover_main
 )
 
 foreach(unit ${PLOVER_UNITS})

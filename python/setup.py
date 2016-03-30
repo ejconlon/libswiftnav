@@ -66,6 +66,9 @@ if __name__ == "__main__":
     'swiftnav.tropo',
     'swiftnav.set',
     'swiftnav.bit_sync',
+
+    'swiftnav.prelude',
+    'swiftnav.plover',
   ]
   extensions = [make_extension(name) for name in ext_names]
   setup_args['ext_modules'] = extensions
