@@ -3,19 +3,28 @@ import prelude;
 __C__ "#include <libswiftnav/linear_algebra.h>";
 __C__ "#include <libswiftnav/constants.h>";
 __C__ "#include <libswiftnav/signal.h>";
+__C__ "#include <libswiftnav/observation.h>";
 --__C__ "#include <libswiftnav/set.h>";
 
-extern MAX_STATE_DIM :: int;
-__C__ "#define MAX_STATE_DIM 22";
+extern MAX_FILTER_STATE_DIM :: int;
+__C__ "#define MAX_FILTER_STATE_DIM 15";
 
 extern (
   GPS_L1_LAMBDA :: double;
 
   -- we don't use the fields; only call functions with gnss_signal_t parameters
   -- TODO make parser accept empty struct definition
-  struct gnss_signal_t ( 
+  struct gnss_signal_t (
     sat :: u16;
     code :: u16; -- taken from enum values below
+  );
+
+  struct sdiff_t (
+    pseudorange :: double;
+    carrier_phase :: double;
+    snr :: double;
+    sid :: gnss_signal_t;
+    sat_pos :: double[3];
   );
 
   CODE_INVALID :: s32;
@@ -38,12 +47,26 @@ struct measurement (
 struct filter_state (
   num_sats :: int; -- must be at least 1!
   ref :: gnss_signal_t;
-  sats :: gnss_signal_t[MAX_STATE_DIM] storing gnss_signal_t[num_sats-1];
+  sats :: gnss_signal_t[MAX_FILTER_STATE_DIM] storing gnss_signal_t[num_sats-1];
   invalid :: bool;
-  x :: double[MAX_STATE_DIM] storing double[num_sats+2];
-  P :: double[MAX_STATE_DIM, MAX_STATE_DIM] storing double[num_sats+2, num_sats+2];
+  x :: double[MAX_FILTER_STATE_DIM] storing double[num_sats+2];
+  P :: double[MAX_FILTER_STATE_DIM, MAX_FILTER_STATE_DIM] storing double[num_sats+2, num_sats+2];
 
   sigma :: double;
+);
+
+sdiffs_convert {dim}
+  (sdiffs :: sdiff_t[dim])
+  (out sats :: double[dim, 3])
+  (out ms :: measurement[dim])
+  :: () := (
+  for i in dim -> (
+    sats[i, :] <- sdiffs[i].sat_pos;
+    ms[i].pseudorange <- sdiffs[i].pseudorange;
+    ms[i].carrier_phase <- sdiffs[i].carrier_phase;
+    ms[i].snr <- sdiffs[i].snr;
+    ms[i].sat_id <- sdiffs[i].sid;
+  );
 );
 
 -- TODO base type polymorphism

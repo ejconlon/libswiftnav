@@ -89,5 +89,6 @@ u8 get_amb_kf_cov(double *cov);
 u8 get_amb_kf_sids(gnss_signal_t *sids);
 u8 get_amb_test_sids(gnss_signal_t *sids);
 u8 dgnss_iar_MLE_ambs(s32 *ambs);
+s8 get_baseline(double baseline[3]);
 
 #endif /* LIBSWIFTNAV_DGNSS_MANAGEMENT_H */
