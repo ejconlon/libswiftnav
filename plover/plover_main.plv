@@ -77,6 +77,6 @@ sigtest (inout x :: gnss_signal_t) :: () := (
   x.code <- 2;
 );
 
-main () :: int := (
+run_test () :: int := (
   test_add_drop 10 22222; 0
 );
