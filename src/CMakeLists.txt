@@ -54,7 +54,6 @@ set(libswiftnav_SRCS
 # Turn off unused-variable checking for generated files (TODO fix plover)
 # Note: this block cannot be placed in plover/CMakeLists
 foreach(unit ${PLOVER_CFILES})
-  message(${unit})
   set_source_files_properties(${unit} PROPERTIES COMPILE_FLAGS -Wno-err)
   set_source_files_properties(${unit} PROPERTIES COMPILE_FLAGS -Wno-unused-variable)
 endforeach(unit)
