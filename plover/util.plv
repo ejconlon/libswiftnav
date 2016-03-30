@@ -14,7 +14,7 @@ extern (
 
   -- we don't use the fields; only call functions with gnss_signal_t parameters
   -- TODO make parser accept empty struct definition
-  struct gnss_signal_t (
+  struct gnss_signal_t ( 
     sat :: u16;
     code :: u16; -- taken from enum values below
   );
@@ -44,16 +44,6 @@ struct measurement (
   sat_id :: gnss_signal_t;
 );
 
-struct filter_state (
-  num_sats :: int; -- must be at least 1!
-  ref :: gnss_signal_t;
-  sats :: gnss_signal_t[MAX_FILTER_STATE_DIM] storing gnss_signal_t[num_sats-1];
-  invalid :: bool;
-  x :: double[MAX_FILTER_STATE_DIM] storing double[num_sats+2];
-  P :: double[MAX_FILTER_STATE_DIM, MAX_FILTER_STATE_DIM] storing double[num_sats+2, num_sats+2];
-
-  sigma :: double;
-);
 
 sdiffs_convert {dim}
   (sdiffs :: sdiff_t[dim])
@@ -67,6 +57,17 @@ sdiffs_convert {dim}
     ms[i].snr <- sdiffs[i].snr;
     ms[i].sat_id <- sdiffs[i].sid;
   );
+);
+
+struct filter_state (
+  num_sats :: int; -- must be at least 1!
+  ref :: gnss_signal_t;
+  sats :: gnss_signal_t[MAX_FILTER_STATE_DIM] storing gnss_signal_t[num_sats-1];
+  invalid :: bool;
+  x :: double[MAX_FILTER_STATE_DIM] storing double[num_sats+2];
+  P :: double[MAX_FILTER_STATE_DIM, MAX_FILTER_STATE_DIM] storing double[num_sats+2, num_sats+2];
+
+  sigma :: double;
 );
 
 -- TODO base type polymorphism
@@ -115,6 +116,18 @@ contains_sat {dim}
   (target :: gnss_signal_t)
   (sats :: gnss_signal_t[dim])
   :: bool := find_sat target sats >= 0;
+
+-- Adding a new row/col of zeroes to a matrix
+add_dimension {dim}
+  (m :: double[dim, dim])
+  :: double[dim+1, dim+1] := (
+  result :: double[dim+1, dim+1];
+  end := dim;
+  result[:end, :end] <- m[:end, :end];
+  result[end, 0..end] <- 0;
+  result[0..end, end] <- 0;
+  result;
+);
 
 -- Print utils
 nl () :: () := (printf "\n"; ());
