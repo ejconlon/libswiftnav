@@ -44,13 +44,13 @@ typedef uint64_t u64;
 int ipow(int base, int exp);
 double dipow(double base, int exp);
 double rand_uniform(void);
-double rand_normal (void);
-double norm (const s32 n, const double * v);
-void normalize (const s32 n, const double * v, double * result);
-void print_vec (const s32 n, const double * v);
-void print_mat (const s32 n, const s32 m, const double * A);
-s32 matrix_inv (const s32 n, const double * A, double * B);
-double det (const s32 n, const double * A);
+double rand_normal(void);
+double norm(const s32 n, const double *v);
+void normalize(const s32 n, const double *v, double *result);
+void print_vec(const s32 n, const double *v);
+void print_mat(const s32 n, const s32 m, const double *A);
+s32 matrix_inv(const s32 n, const double *A, double *B);
+double det(const s32 n, const double *A);
 
 
 #endif /* PLOVER_GENERATED_prelude */

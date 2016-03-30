@@ -1,9 +1,9 @@
 #include "libswiftnav/plover/qr.h"
 
 
-static void givens (const double a, const double b, double * result);
-static s8 backsolve (const s32 n, const double * U, double * b);
-void givens (const double a, const double b, double * result)
+static void givens(const double a, const double b, double *result);
+static s8 backsolve(const s32 n, const double *U, double *b);
+void givens(const double a, const double b, double *result)
 {
     double c;
     double s;
@@ -31,13 +31,13 @@ void givens (const double a, const double b, double * result)
     result[2 * 1] = -s;
     result[2 * 1 + 1] = c;
 }
-s8 qr_solve (const s32 m, const s32 n, double * A, double * b, double * solution, double * const residual)
+s8 qr_solve(const s32 m, const s32 n, double *A, double *b, double *solution, double *const residual)
 {
     qr_update(m, n, b, A);
     
     s8 code;
-    double arg [n * n];
-    double arg2 [n];
+    double arg[n * n];
+    double arg2[n];
     
     for (s32 idx = 0; idx < n; idx++) {
         for (s32 idx2 = 0; idx2 < n; idx2++) {
@@ -55,7 +55,7 @@ s8 qr_solve (const s32 m, const s32 n, double * A, double * b, double * solution
         solution[idx] = b[idx];
     }
     
-    double arg3 [m - n];
+    double arg3[m - n];
     
     for (s32 idx = 0; idx < m - n; idx++) {
         arg3[idx] = b[n + idx];
@@ -63,15 +63,15 @@ s8 qr_solve (const s32 m, const s32 n, double * A, double * b, double * solution
     *residual = norm(m - n, arg3);
     return code;
 }
-void qr_update (const s32 m, const s32 n, double * b, double * A)
+void qr_update(const s32 m, const s32 n, double *b, double *A)
 {
     for (s32 j = 1, idx = 0; idx < n; j += 1, idx++) {
         for (s32 i = m, idx2 = 0; idx2 < -j + m; i += -1, idx2++) {
-            double rot [2 * 2];
+            double rot[2 * 2];
             
             givens(A[n * (i - 2) + (j - 1)], A[n * (i - 1) + (j - 1)], rot);
             for (s32 k = j, idx3 = 0; idx3 < 1 - j + n; k += 1, idx3++) {
-                double v [2];
+                double v[2];
                 
                 for (s32 idx4 = 0; idx4 < 2; idx4++) {
                     v[idx4] = A[n * (i - 2 + idx4) + (k - 1)];
@@ -86,7 +86,7 @@ void qr_update (const s32 m, const s32 n, double * b, double * A)
                 }
             }
             
-            double v [2];
+            double v[2];
             
             for (s32 idx3 = 0; idx3 < 2; idx3++) {
                 v[idx3] = b[i - 2 + idx3];
@@ -102,7 +102,7 @@ void qr_update (const s32 m, const s32 n, double * b, double * A)
         }
     }
 }
-s8 backsolve (const s32 n, const double * U, double * b)
+s8 backsolve(const s32 n, const double *U, double *b)
 {
     for (s32 i = 0, idx = 0; idx < n; i += 1, idx++) {
         if (U[n * i + i] == 0) {

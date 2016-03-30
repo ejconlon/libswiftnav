@@ -31,17 +31,17 @@ double rand_uniform(void) {
   return di.d-1;
 }
 #define MATRIX_EPSILON (1e-60)
-static s32 inv1 (const double * A, double * B);
-static double det2 (const double * A);
-static s32 inv2 (const double * A, double * B);
-static double det3 (const double * A);
-static s32 inv3 (const double * A, double * B);
-static double det4 (const double * A);
-static s32 inv4 (const double * A, double * B);
-static void givens (const double a, const double b, double * result);
-static double gen_det_qr (const s32 n, const double * U);
-static s32 gen_inv_qr (const s32 n, const double * U, double * B);
-double rand_normal (void)
+static s32 inv1(const double *A, double *B);
+static double det2(const double *A);
+static s32 inv2(const double *A, double *B);
+static double det3(const double *A);
+static s32 inv3(const double *A, double *B);
+static double det4(const double *A);
+static s32 inv4(const double *A, double *B);
+static void givens(const double a, const double b, double *result);
+static double gen_det_qr(const s32 n, const double *U);
+static s32 gen_inv_qr(const s32 n, const double *U, double *B);
+double rand_normal(void)
 {
     double x1;
     double x2;
@@ -55,7 +55,7 @@ double rand_normal (void)
     w = sqrt(-(2 * log(w) / w));
     return x1 * w;
 }
-double norm (const s32 n, const double * v)
+double norm(const s32 n, const double *v)
 {
     double sum = 0;
     
@@ -64,7 +64,7 @@ double norm (const s32 n, const double * v)
     }
     return sqrt(sum);
 }
-void normalize (const s32 n, const double * v, double * result)
+void normalize(const s32 n, const double *v, double *result)
 {
     double tmp;
     
@@ -73,7 +73,7 @@ void normalize (const s32 n, const double * v, double * result)
         result[idx] = v[idx] / tmp;
     }
 }
-void print_vec (const s32 n, const double * v)
+void print_vec(const s32 n, const double *v)
 {
     printf("vec(");
     for (s32 i = 0, idx = 0; idx < n; i += 1, idx++) {
@@ -84,7 +84,7 @@ void print_vec (const s32 n, const double * v)
     }
     printf(")\n");
 }
-void print_mat (const s32 n, const s32 m, const double * A)
+void print_mat(const s32 n, const s32 m, const double *A)
 {
     printf("mat(");
     for (s32 i = 0, idx = 0; idx < n; i += 1, idx++) {
@@ -100,7 +100,7 @@ void print_mat (const s32 n, const s32 m, const double * A)
     }
     printf(")\n");
 }
-s32 matrix_inv (const s32 n, const double * A, double * B)
+s32 matrix_inv(const s32 n, const double *A, double *B)
 {
     s32 tmp;
     
@@ -148,7 +148,7 @@ s32 matrix_inv (const s32 n, const double * A, double * B)
     }
     return tmp;
 }
-double det (const s32 n, const double * A)
+double det(const s32 n, const double *A)
 {
     double tmp;
     
@@ -196,7 +196,7 @@ double det (const s32 n, const double * A)
     }
     return tmp;
 }
-s32 inv1 (const double * A, double * B)
+s32 inv1(const double *A, double *B)
 {
     if (fabs(A[0]) < MATRIX_EPSILON) {
         return -1;
@@ -204,11 +204,11 @@ s32 inv1 (const double * A, double * B)
     B[0] = 1 / A[0];
     return 0;
 }
-double det2 (const double * A)
+double det2(const double *A)
 {
     return A[2 * 0] * A[2 * 1 + 1] - A[2 * 0 + 1] * A[2 * 1];
 }
-s32 inv2 (const double * A, double * B)
+s32 inv2(const double *A, double *B)
 {
     double d;
     
@@ -222,7 +222,7 @@ s32 inv2 (const double * A, double * B)
     B[2 * 1 + 1] = A[2 * 0] / d;
     return 0;
 }
-double det3 (const double * A)
+double det3(const double *A)
 {
     return -(A[3 * 1] * (A[3 * 0 + 1] * A[3 * 2 + 2] - A[3 * 0 + 2] * A[3 * 2 + 1])) + A[3 * 1 + 1] * (A[3 * 0] * A[3 *
                                                                                                                     2 +
@@ -233,7 +233,7 @@ double det3 (const double * A)
                                                                                                                      2] *
         (A[3 * 0] * A[3 * 2 + 1] - A[3 * 0 + 1] * A[3 * 2]);
 }
-s32 inv3 (const double * A, double * B)
+s32 inv3(const double *A, double *B)
 {
     double d;
     
@@ -252,7 +252,7 @@ s32 inv3 (const double * A, double * B)
     B[3 * 2 + 2] = (A[3 * 0] * A[3 * 1 + 1] - A[3 * 0 + 1] * A[3 * 1]) / d;
     return 0;
 }
-double det4 (const double * A)
+double det4(const double *A)
 {
     return A[4 * 1] * (A[4 * 2 + 1] * (A[4 * 0 + 2] * A[4 * 3 + 3] - A[4 * 0 + 3] * A[4 * 3 + 2]) - A[4 * 2 + 2] *
                        (A[4 * 0 + 1] * A[4 * 3 + 3] - A[4 * 0 + 3] * A[4 * 3 + 1]) + A[4 * 2 + 3] * (A[4 * 0 + 1] *
@@ -310,7 +310,7 @@ double det4 (const double * A)
                                                                                                                    3]) +
                         A[4 * 2 + 2] * (A[4 * 0] * A[4 * 3 + 1] - A[4 * 0 + 1] * A[4 * 3]));
 }
-s32 inv4 (const double * A, double * B)
+s32 inv4(const double *A, double *B)
 {
     double d;
     
@@ -479,7 +479,7 @@ s32 inv4 (const double * A, double * B)
                     A[4 * 1 + 2] * (A[4 * 0] * A[4 * 2 + 1] - A[4 * 0 + 1] * A[4 * 2])) / d;
     return 0;
 }
-void givens (const double a, const double b, double * result)
+void givens(const double a, const double b, double *result)
 {
     double c;
     
@@ -511,9 +511,9 @@ void givens (const double a, const double b, double * result)
     result[2 * 1] = -s;
     result[2 * 1 + 1] = c;
 }
-double gen_det_qr (const s32 n, const double * U)
+double gen_det_qr(const s32 n, const double *U)
 {
-    double A [n * n];
+    double A[n * n];
     
     for (s32 idx = 0; idx < n; idx++) {
         for (s32 idx2 = 0; idx2 < n; idx2++) {
@@ -522,11 +522,11 @@ double gen_det_qr (const s32 n, const double * U)
     }
     for (s32 j = 1, idx = 0; idx < n; j += 1, idx++) {
         for (s32 i = n, idx2 = 0; idx2 < -j + n; i += -1, idx2++) {
-            double rot [2 * 2];
+            double rot[2 * 2];
             
             givens(A[n * (i - 2) + (j - 1)], A[n * (i - 1) + (j - 1)], rot);
             for (s32 k = j, idx3 = 0; idx3 < 1 - j + n; k += 1, idx3++) {
-                double v [2];
+                double v[2];
                 
                 for (s32 idx4 = 0; idx4 < 2; idx4++) {
                     v[idx4] = A[n * (i - 2 + idx4) + (k - 1)];
@@ -551,9 +551,9 @@ double gen_det_qr (const s32 n, const double * U)
     }
     return d;
 }
-s32 gen_inv_qr (const s32 n, const double * U, double * B)
+s32 gen_inv_qr(const s32 n, const double *U, double *B)
 {
-    double A [n * n];
+    double A[n * n];
     
     for (s32 idx = 0; idx < n; idx++) {
         for (s32 idx2 = 0; idx2 < n; idx2++) {
@@ -577,11 +577,11 @@ s32 gen_inv_qr (const s32 n, const double * U, double * B)
     }
     for (s32 j = 1, idx = 0; idx < n; j += 1, idx++) {
         for (s32 i = n, idx2 = 0; idx2 < -j + n; i += -1, idx2++) {
-            double rot [2 * 2];
+            double rot[2 * 2];
             
             givens(A[n * (i - 2) + (j - 1)], A[n * (i - 1) + (j - 1)], rot);
             for (s32 k = j, idx3 = 0; idx3 < 1 - j + n; k += 1, idx3++) {
-                double v [2];
+                double v[2];
                 
                 for (s32 idx4 = 0; idx4 < 2; idx4++) {
                     v[idx4] = A[n * (i - 2 + idx4) + (k - 1)];
@@ -596,7 +596,7 @@ s32 gen_inv_qr (const s32 n, const double * U, double * B)
                 }
             }
             for (s32 k = 1, idx3 = 0; idx3 < n; k += 1, idx3++) {
-                double w [2];
+                double w[2];
                 
                 for (s32 idx4 = 0; idx4 < 2; idx4++) {
                     w[idx4] = B[n * (i - 2 + idx4) + (k - 1)];
