@@ -14,7 +14,7 @@ extern (
 
   -- we don't use the fields; only call functions with gnss_signal_t parameters
   -- TODO make parser accept empty struct definition
-  struct gnss_signal_t ( 
+  struct gnss_signal_t (
     sat :: u16;
     code :: u16; -- taken from enum values below
   );
