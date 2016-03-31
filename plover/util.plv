@@ -4,7 +4,6 @@ __C__ "#include <libswiftnav/linear_algebra.h>";
 __C__ "#include <libswiftnav/constants.h>";
 __C__ "#include <libswiftnav/signal.h>";
 __C__ "#include <libswiftnav/observation.h>";
---__C__ "#include <libswiftnav/set.h>";
 
 extern MAX_FILTER_STATE_DIM :: int;
 __C__ "#define MAX_FILTER_STATE_DIM 15";
@@ -14,7 +13,7 @@ extern (
 
   -- we don't use the fields; only call functions with gnss_signal_t parameters
   -- TODO make parser accept empty struct definition
-  struct gnss_signal_t (
+  struct gnss_signal_t ( 
     sat :: u16;
     code :: u16; -- taken from enum values below
   );

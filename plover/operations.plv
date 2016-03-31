@@ -1,6 +1,24 @@
 import prelude;
 import util;
 
+-- Reorder sdiffs
+reorder {dim}
+  (ordering :: gnss_signal_t[dim])
+  (inout measurements :: measurement[dim])
+  :: () := (
+  -- sort the measurements according to ordering
+  for i in dim -> (
+    for j in i:dim -> (
+      if sid_is_equal measurements[j].sat_id ordering[i] then (
+        temp := measurements[i];
+        measurements[i] <- measurements[j];
+        measurements[j] <- temp;
+      );
+    );
+  );
+  for i in dim -> assert sid_is_equal measurements[i].sat_id ordering[i];
+);
+
 -- ADD SAT --
 
 add_sat
@@ -8,7 +26,6 @@ add_sat
   (sat :: gnss_signal_t)
   :: () := (
   printf "add: "; print_sat sat;
-  printf "current dim: %d\n" state.num_sats;
   num := state.num_sats + 1;
   p_new :: double[num+2, num+2];
   -- initial off-diagonal covariance = 0

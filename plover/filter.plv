@@ -175,6 +175,9 @@ update_ {dim}
 
   -- Begin KF update
 
+  -- reorder sdiffs
+  reorder (vec(state.ref) # state.sats[:dim-1]) (inout sdiffs);
+
   -- Process model
   F :: double[dim+2, dim+2];
   Q :: double[dim+2, dim+2];
@@ -190,7 +193,7 @@ update_ {dim}
   H :: double[2*(dim-1), dim+2];
   R :: double[2*(dim-1), 2*(dim-1)];
   -- TODO
-  sig_cp := 1.0; sig_pr := 1.0;
+  sig_cp := 0.02; sig_pr := 3.0;
   observation_model_
     (vec i in : -> sdiffs[i].pseudorange)
     (vec i in : -> sdiffs[i].carrier_phase)
