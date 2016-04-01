@@ -129,9 +129,7 @@ add_dimension {dim}
 -- Print utils
 nl () :: () := (printf "\n"; ());
 
-print_sat (s :: gnss_signal_t) :: s32 := (
-  printf "Sat: %d, " s.sat;
-);
+print_sat (s :: gnss_signal_t) :: s32 := printf "%d, " s.sat;
 
 print_sats {n} (s :: gnss_signal_t[n]) :: () := (
   for i in n -> (

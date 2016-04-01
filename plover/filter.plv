@@ -118,8 +118,10 @@ process_model {dim}
   (sig_z :: double)
   :: () := (
   F <- scalar 1.0;
-  Q[:3, :3] <- scalar (sig_x^2);
-  Q[3:, 3:] <- scalar (sig_z^2);
+  sigma :: double[dim];
+  sigma[:3] <- (sig_x^2);
+  sigma[3:] <- (sig_z^2);
+  Q <- (scalar 1.0) * sigma;
 );
 
 update_ {dim}
