@@ -8,7 +8,6 @@ make_filter_state () :: filter_state := (
   s :: filter_state;
   s.invalid <- True;
   s.num_sats <- 0;
-  s.sigma <- 2.2; --TODO
   s;
 );
 
@@ -16,13 +15,14 @@ kalman_init_
   (out state :: filter_state)
   (ref :: gnss_signal_t)
   :: () := (
-  printf "reset filter. ref: "; print_sat ref; nl ();
+  sig_init_p := 1.0e3;
+  printf "Reset Filter! new reference: "; print_sat ref; nl ();
   state.num_sats <- 1;
   state.ref <- ref;
   state.invalid <- False;
   state.x <- 0.0;
   position_covariance :: double[state.num_sats + 2, state.num_sats + 2];
-  position_covariance <- scalar 1.0; -- TODO
+  position_covariance[:3, :3] <- scalar (sig_init_p^2);
   state.P <- position_covariance;
 );
 
@@ -114,10 +114,12 @@ observation_model_ {sats}
 process_model {dim}
   (out F :: double[dim, dim])
   (out Q :: double[dim, dim])
+  (sig_x :: double)
+  (sig_z :: double)
   :: () := (
   F <- scalar 1.0;
-  -- TODO:
-  Q <- scalar 1.0;
+  Q[:3, :3] <- scalar (sig_x^2);
+  Q[3:, 3:] <- scalar (sig_z^2);
 );
 
 update_ {dim}
@@ -127,6 +129,13 @@ update_ {dim}
   (sat_positions :: double[dim, 3])
   -- ? (raim flag)
   :: () := (
+
+  -- TODO - Tune these constants
+  sig_cp := 0.02;
+  sig_pr := 3.0;
+  sig_x := 2.0;
+  sig_z := 10.0;
+  sig_init_p := 1.0e3;
 
   -- We want to reorder them
   sdiffs := input_sdiffs;
@@ -161,9 +170,10 @@ update_ {dim}
   while (drop_a_sat (inout state) new_sats);
 
   -- Add any new sats
+  sig_new_amb := (sig_init_p / GPS_L1_LAMBDA)^2;
   for i in dim -> (
     if not (contains_sat new_sats[i] state.sats or sid_is_equal new_sats[i] state.ref) then
-      add_sat (inout state) new_sats[i]
+      add_sat (inout state) new_sats[i] sig_new_amb
   );
 
   -- Assert that sat sets are consistent
@@ -181,7 +191,7 @@ update_ {dim}
   -- Process model
   F :: double[dim+2, dim+2];
   Q :: double[dim+2, dim+2];
-  process_model (out F) (out Q);
+  process_model (out F) (out Q) sig_x sig_z;
 
   x_new_1 :: double[dim+2];
   P_new_1 :: double[dim+2, dim+2];
@@ -192,8 +202,7 @@ update_ {dim}
   y :: double[2*(dim-1)];
   H :: double[2*(dim-1), dim+2];
   R :: double[2*(dim-1), 2*(dim-1)];
-  -- TODO
-  sig_cp := 0.02; sig_pr := 3.0;
+
   observation_model_
     (vec i in : -> sdiffs[i].pseudorange)
     (vec i in : -> sdiffs[i].carrier_phase)

@@ -24,6 +24,7 @@ reorder {dim}
 add_sat
   (inout state :: filter_state)
   (sat :: gnss_signal_t)
+  (sig_new_amb :: double)
   :: () := (
   printf "add: "; print_sat sat;
   num := state.num_sats + 1;
@@ -33,8 +34,7 @@ add_sat
   state.sats[num-2] <- sat;
   pdim := 3+num-1;
   state.x[pdim-1] <- 0.0;
-  -- initial variance = sigma
-  p_new[pdim-1, pdim-1] <- state.sigma;
+  p_new[pdim-1, pdim-1] <- (sig_new_amb^2);
   state.num_sats <- num; -- this line must happen before the next!
   state.P[:pdim, :pdim] <- p_new[:pdim, :pdim];
   --nl (); print_mat state.P; nl ();
