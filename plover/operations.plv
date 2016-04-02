@@ -71,7 +71,8 @@ drop_sat
   index := drop_sat_state sat (inout state);
   -- TODO check
   dim := state.num_sats+2;
-  state.x[:dim-1] <- drop_i_1_double index state.x[:dim];
+  --  state.x[:dim-1] <- drop_i_1_double index state.x[:dim];
+  state.x[index:dim-1] <- state.x[index+1:dim];
   state.P[:dim-1,:dim-1] <- drop_i_2 index (drop_i_2 index state.P[:dim,:dim]^T)^T;
 );
 
