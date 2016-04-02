@@ -26,7 +26,7 @@ add_sat
   (sat :: gnss_signal_t)
   (sig_new_amb :: double)
   :: () := (
-  printf "add: "; print_sat sat;
+  printf "ADD: "; print_sat sat; print_sat_state state;
   num := state.num_sats + 1;
   p_new :: double[num+2, num+2];
   -- initial off-diagonal covariance = 0
@@ -37,7 +37,7 @@ add_sat
   p_new[pdim-1, pdim-1] <- (sig_new_amb^2);
   state.num_sats <- num; -- this line must happen before the next!
   state.P[:pdim, :pdim] <- p_new[:pdim, :pdim];
-  --nl (); print_mat state.P; nl ();
+  nl (); printf "\nP:\n"; print_mat_upsidedown state.P; nl ();
 );
 
 -- DROP SAT --
@@ -67,7 +67,7 @@ drop_sat
   (inout state :: filter_state)
   (sat :: gnss_signal_t)
   :: () := (
-  printf "drop: "; print_sat sat;
+  printf "DROP: "; print_sat sat; print_sat_state state;
   index := drop_sat_state sat (inout state);
   -- TODO check
   dim := state.num_sats+2;
