@@ -288,7 +288,7 @@ void dgnss_update(u8 num_sats, sdiff_t *sdiffs, double receiver_ecef[3],
 
 }
 
-s8 get_baseline(double baseline[3])
+s8 get_baseline(double baseline[3], u8 *num_sats)
 {
   if (filter_state_.invalid) {
     return -1;
@@ -297,6 +297,7 @@ s8 get_baseline(double baseline[3])
   baseline[0] = filter_state_.x[0];
   baseline[1] = filter_state_.x[1];
   baseline[2] = filter_state_.x[2];
+  *num_sats = filter_state_.num_sats;
 
   return 0;
 }
