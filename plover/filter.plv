@@ -162,11 +162,11 @@ process_model {dim}
   Q <- (scalar 1.0) * sigma;
 );
 
-update_ {dim}
+update_ {n_sdiffs}
   (inout state :: filter_state)
-  (input_sdiffs :: measurement[dim])
+  (input_sdiffs :: measurement[n_sdiffs])
   (receiver_ecef :: double[3])
-  (sat_positions :: double[dim, 3])
+  (sat_positions :: double[n_sdiffs, 3])
   -- ? (raim flag)
   :: () := (
 
@@ -181,14 +181,14 @@ update_ {dim}
   sdiffs := input_sdiffs;
 
   -- Filter reset
-  if dim == 0 then (
+  if n_sdiffs == 0 then (
     printf "empty filter\n";
     state <- make_filter_state ();
     return;
   );
   if state.invalid then kalman_init_ (out state) sdiffs[0].sat_id;
 
-  new_sats := vec i in dim -> sdiffs[i].sat_id;
+  new_sats := vec i in n_sdiffs -> sdiffs[i].sat_id;
 
   -- Update the reference
   if not (contains_sat state.ref new_sats) then (
@@ -215,15 +215,15 @@ update_ {dim}
 
   -- Add any new sats
   sig_new_amb := (sig_init_p / GPS_L1_LAMBDA)^2;
-  for i in dim -> (
+  for i in n_sdiffs -> (
     if not (contains_sat new_sats[i] state.sats or sid_is_equal new_sats[i] state.ref) then
       add_sat (inout state) new_sats[i] sig_new_amb
   );
   print_vec state.x;
   print_sat_state state;
   -- Assert that sat sets are consistent
-  assert state.num_sats == dim;
-  for i in dim -> assert (
+  assert state.num_sats == n_sdiffs;
+  for i in n_sdiffs -> assert (
     contains_sat sdiffs[i].sat_id state.sats or
     sid_is_equal sdiffs[i].sat_id state.ref
   );
@@ -231,22 +231,22 @@ update_ {dim}
   -- Begin KF update
 
   -- reorder sdiffs
-  reorder (vec(state.ref) # state.sats[:dim-1]) (inout sdiffs);
+  reorder (vec(state.ref) # state.sats[:n_sdiffs-1]) (inout sdiffs);
 
   -- Process model
-  F :: double[dim+2, dim+2];
-  Q :: double[dim+2, dim+2];
+  F :: double[n_sdiffs+2, n_sdiffs+2];
+  Q :: double[n_sdiffs+2, n_sdiffs+2];
   process_model (out F) (out Q) sig_x sig_z;
 
-  x_new_1 :: double[dim+2];
-  P_new_1 :: double[dim+2, dim+2];
-  kalman_predict_ state.x[:dim+2] state.P[:dim+2,:dim+2]
+  x_new_1 :: double[n_sdiffs+2];
+  P_new_1 :: double[n_sdiffs+2, n_sdiffs+2];
+  kalman_predict_ state.x[:n_sdiffs+2] state.P[:n_sdiffs+2,:n_sdiffs+2]
     F Q (out x_new_1) (out P_new_1);
 
   -- Measurement update
-  y :: double[2*(dim-1)];
-  H :: double[2*(dim-1), dim+2];
-  R :: double[2*(dim-1), 2*(dim-1)];
+  y :: double[2*(n_sdiffs-1)];
+  H :: double[2*(n_sdiffs-1), n_sdiffs+2];
+  R :: double[2*(n_sdiffs-1), 2*(n_sdiffs-1)];
 
   direct_observation_model_
     (vec i in : -> sdiffs[i].pseudorange)
@@ -254,11 +254,11 @@ update_ {dim}
     x_new_1[0:3] receiver_ecef sat_positions sig_cp sig_pr
     (out y) (out H) (out R);
 
-  x_new_2 :: double[dim+2];
-  P_new_2 :: double[dim+2, dim+2];
+  x_new_2 :: double[n_sdiffs+2];
+  P_new_2 :: double[n_sdiffs+2, n_sdiffs+2];
   kalman_update_ x_new_1 P_new_1 y H R
     (out x_new_2) (out P_new_2);
 
-  state.x[:dim+2] <- x_new_2;
-  state.P[:dim+2, :dim+2] <- P_new_2;
+  state.x[:n_sdiffs+2] <- x_new_2;
+  state.P[:n_sdiffs+2, :n_sdiffs+2] <- P_new_2;
 );
