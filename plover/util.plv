@@ -109,6 +109,12 @@ find_sat {dim}
   return -1;
 );
 
+sats_index_to_x_index
+  (sats_index :: s32)
+  :: s32 := (
+    return sats_index + 3;
+);
+
 contains_sat {dim}
   (target :: gnss_signal_t)
   (sats :: gnss_signal_t[dim])
