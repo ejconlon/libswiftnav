@@ -49,6 +49,7 @@ kalman_update_ {xdim, dim}
   :: () := (
 
   innovation := y - H * x;
+
   PHt := P * H^T;
   S := H * PHt + R;
   K := PHt * S^(-1) :: double[xdim, dim];
@@ -144,7 +145,7 @@ direct_observation_model_ {sats}
   left := (D * E) # (D * E);
   right := eye # zeros;
   H <- (left^T # right^T)^T;
-  printf "\n H:"; print_mat_upsidedown H;
+  --printf "\n H:"; print_mat_upsidedown H;
   R <- 4 * sig_cp * scalar 1.0; -- TODO
 );
 
@@ -195,7 +196,7 @@ update_ {dim}
     if index < 0 then (
       kalman_init_ (out state) sdiffs[0].sat_id;
     ) else (
-      printf "change ref: ";
+      printf "CHANGE REF: ";
       print_sat sdiffs[index].sat_id; nl ();
       change_ref (inout state) sdiffs[index].sat_id;
       -- reorder measurements
@@ -206,7 +207,11 @@ update_ {dim}
 
   );
   -- Drop any missing sats
+  print_vec state.x;
+  print_sat_state state;
   while (drop_a_sat (inout state) new_sats);
+  print_vec state.x;
+  print_sat_state state;
 
   -- Add any new sats
   sig_new_amb := (sig_init_p / GPS_L1_LAMBDA)^2;
@@ -214,7 +219,8 @@ update_ {dim}
     if not (contains_sat new_sats[i] state.sats or sid_is_equal new_sats[i] state.ref) then
       add_sat (inout state) new_sats[i] sig_new_amb
   );
-
+  print_vec state.x;
+  print_sat_state state;
   -- Assert that sat sets are consistent
   assert state.num_sats == dim;
   for i in dim -> assert (
