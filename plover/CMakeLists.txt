@@ -41,7 +41,7 @@ set (PLOVER_UNITS
   filter
   operations
   rand
-  plover_main
+  plover_lib
 )
 
 foreach(unit ${PLOVER_UNITS})

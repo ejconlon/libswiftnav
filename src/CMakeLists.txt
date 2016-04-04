@@ -77,6 +77,7 @@ else(BUILD_SHARED_LIBS)
 endif(BUILD_SHARED_LIBS)
 
 install(FILES ${libswiftnav_HEADERS} DESTINATION include/libswiftnav)
+install(FILES ${PLOVER_HFILES} DESTINATION include/libswiftnav/plover)
 
 MESSAGE("${PROJECT_SOURCE_DIR}")
 

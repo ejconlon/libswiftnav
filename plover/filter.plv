@@ -201,10 +201,6 @@ update_ {n_sdiffs}
       printf "CHANGE REF: ";
       print_sat sdiffs[index].sat_id; nl ();
       change_ref (inout state) sdiffs[index].sat_id;
-      -- reorder measurements
-      ref_measurement := sdiffs[index];
-      sdiffs[index] <- sdiffs[0];
-      sdiffs[0] <- ref_measurement;
     );
 
   );

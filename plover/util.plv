@@ -58,6 +58,7 @@ sdiffs_convert {dim}
   );
 );
 
+-- MAX_FILTER_STATE_DIM = max(num_sats) + 2
 struct filter_state (
   num_sats :: int; -- must be at least 1!
   ref :: gnss_signal_t;
