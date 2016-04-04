@@ -128,24 +128,23 @@ change_ref
   -- so xi <- xi - xj
   --    xj <- -xj
   --    satj <- sat0
-  sats := sat_state.num_sats;
-  dim := sats+2;
+  num_states := num_sats_to_num_states sat_state.num_sats;
 
   -- Construct change of basis matrix
-  change :: double[dim, dim];
+  change :: double[num_states, num_states];
   -- sat == sat_state.sats[j]
   sats_index := find_sat sat sat_state.sats;
   x_index := sats_index_to_x_index sats_index;
   change <- scalar 1.0;
   change[:,x_index] <- -1;
   -- Apply update
-  new_x := change * sat_state.x[:dim];
-  new_p := change * sat_state.P[:dim,:dim] * change^T;
+  new_x := change * sat_state.x[:num_states];
+  new_p := change * sat_state.P[:num_states,:num_states] * change^T;
 
   -- Update state struct
   sat_state.sats[sats_index] <- sat_state.ref;
   sat_state.ref <- sat;
   -- TODO fix struct sizing issue
-  sat_state.x[:dim] <- new_x;
-  sat_state.P[:dim,:dim] <- new_p;
+  sat_state.x[:num_states] <- new_x;
+  sat_state.P[:num_states,:num_states] <- new_p;
 );
