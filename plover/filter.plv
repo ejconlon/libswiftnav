@@ -156,10 +156,12 @@ process_model {dim}
   (sig_z :: double)
   :: () := (
   F <- scalar 1.0;
-  sigma :: double[dim];
-  sigma[:3] <- (sig_x^2);
-  sigma[3:] <- (sig_z^2);
-  Q <- (scalar 1.0) * sigma;
+  diagonal :: double[dim];
+  diagonal[:3] <- (sig_x^2);
+  diagonal[3:] <- (sig_z^2);
+  sigma :: Diagonal double[dim, dim];
+  sigma <- diagonal;
+  Q <- sigma;
 );
 
 update_ {n_sdiffs}
