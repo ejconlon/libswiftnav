@@ -31,7 +31,7 @@ cdef extern from "libswiftnav/plover/plover_lib.h":
 
     s32 matrix_inverse (const s32 dim, const double * x, double * y);
     void print_all_ (const s32 dim, const double * innovation, const double * S, const double * Si, const double * K, const double * x_new, const double * P_new);
-    void observation_model_ (const s32 sats, const double * pseudoranges, const double * carrier_phases, const double * x, const double * base_pos, const double * sat_positions, const double sig_cp, const double sig_pr, double * y, double * H, double * R);
+    void direct_observation_model_ (const s32 sats, const double * pseudoranges, const double * carrier_phases, const double * x, const double * base_pos, const double * sat_positions, const double sig_cp, const double sig_pr, double * y, double * H, double * R);
     void sigtest (gnss_signal_t * const x);
 
     void update_ (const s32 dim, filter_state * const state, const measurement * input_sdiffs, const double * receiver_ecef, const double * sat_positions);

@@ -37,7 +37,7 @@ add_sat
   p_new[pdim-1, pdim-1] <- (sig_new_amb^2);
   state.num_sats <- num; -- this line must happen before the next!
   state.P[:pdim, :pdim] <- p_new[:pdim, :pdim];
-  nl (); printf "\nP:\n"; print_mat_upsidedown state.P; nl ();
+  --nl (); printf "\nP:\n"; print_mat_upsidedown state.P; nl ();
 );
 
 -- DROP SAT --

@@ -56,6 +56,8 @@ kalman_update_ {xdim, dim}
 
   x_new <- x + K * innovation;
   P_new <- (scalar 1.0 - K * H) * P;
+
+  printf "after update:\n"; print_mat P_new; nl ();
 );
 
 omega_dot_unit_vector {sats, dim}
@@ -88,17 +90,17 @@ orthogonal_observation_model_ {sats}
 
   E :: double[sats, 3];
   E <- (omega_dot_unit_vector base_pos sat_positions x[0:3]) / GPS_L1_LAMBDA;
-  printf "\nE:\n"; print_mat_upsidedown E;
+  --printf "\nE:\n"; print_mat_upsidedown E;
   u :: double[sats];
   u <- -1.0 / sqrt sats;
   u[0] <- u[0] + 1;
 
   P_bar :: double[sats-1, sats];
   P_bar <- (scalar 1.0 - 2 * (u * u^T) / (u * u))[1:];
-  printf "\nP_bar:\n"; print_mat_upsidedown P_bar;
+  --printf "\nP_bar:\n"; print_mat_upsidedown P_bar;
   F :: double[sats-1, sats-1] :=
     scalar 1.0 - (1 / (sats - sqrt sats));
-  printf "F:\n"; print_mat_upsidedown F;
+  --printf "F:\n"; print_mat_upsidedown F;
   sig_ratio := sig_cp / (sig_pr / GPS_L1_LAMBDA);
 
   -- Outputs
@@ -108,7 +110,7 @@ orthogonal_observation_model_ {sats}
   -- block: [PE, F; sig_ratio*PE, 0]
   PE := P_bar * E;
   H <- ((PE^T # F^T)^T # ((sig_ratio * PE^T) # scalar 0.0)^T);
-  printf "\n H:"; print_mat_upsidedown H;
+  --printf "\n H:"; print_mat_upsidedown H;
   R <- 4 * sig_cp * scalar 1.0;
 );
 
@@ -246,7 +248,7 @@ update_ {n_sdiffs}
   H :: double[2*(n_sdiffs-1), n_sdiffs+2];
   R :: double[2*(n_sdiffs-1), 2*(n_sdiffs-1)];
 
-  direct_observation_model_
+  orthogonal_observation_model_
     (vec i in : -> sdiffs[i].pseudorange)
     (vec i in : -> sdiffs[i].carrier_phase)
     x_new_1[0:3] receiver_ecef sat_positions sig_cp sig_pr

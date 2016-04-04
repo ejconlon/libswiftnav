@@ -27,7 +27,8 @@ cdef class CPloverFilter:
         cdef np.ndarray[double, ndim=1, mode="c"] P_max = np.zeros([225])
         P_max[:] = self.state.P
 
-        P_flat[:] = P_max.reshape((15, 15))[:sats+2, :sats+2]
+        P_flat[:] = P_max[:(sats+2)*(sats+2)].reshape((sats+2, sats+2))
+        print P_flat
         return P_flat
 
         #self.P = P_flat.reshape((sats+2, sats+2))
@@ -65,9 +66,12 @@ cdef class CPloverFilter:
         cdef np.ndarray[double, ndim=2, mode="c"] sat_pos = \
           np.atleast_2d(base_obs[['sat_x', 'sat_y', 'sat_z']].values.copy(order='c'))
 
+        #cdef filter_state *s = <filter_state *>malloc(0)
+        #free(s)
+        #update_(sats, s, &measurements[0], &base_pos[0], &sat_pos[0,0])
         update_(sats, &self.state, &measurements[0], &base_pos[0], &sat_pos[0,0])
         free(measurements)
-        #plover.update_()
+
 
 def kalman_predict(
         np.ndarray[double, ndim=1, mode="c"] x,
@@ -99,30 +103,30 @@ def inverse(np.ndarray[double, ndim=2, mode="c"] P):
     matrix_inverse(dim, &P[0,0], &new[0,0])
     return new
 
-def observation_model(self,
-        rover_obs, base_obs,
-        #np.ndarray[double, ndim=1, mode="c"] x,
-        base_pos_tuple):
-
-    sdiffs = self.get_single_diffs(rover_obs, base_obs, propagate_base=False)
-    sats = len(sdiffs)
-    cdef np.ndarray[double, ndim=1, mode="c"] pseudoranges = sdiffs['pseudorange'].values
-    cdef np.ndarray[double, ndim=1, mode="c"] carrier_phases = sdiffs['carrier_phase'].values
-    cdef np.ndarray[double, ndim=2, mode="c"] sat_pos = \
-      np.atleast_2d(base_obs[['sat_x', 'sat_y', 'sat_z']].values.copy(order='c'))
-    cdef np.ndarray[double, ndim=1, mode="c"] base_pos = np.zeros([3])
-    base_pos[0] = base_pos_tuple[0]
-    base_pos[1] = base_pos_tuple[1]
-    base_pos[2] = base_pos_tuple[2]
-    cdef np.ndarray[double, ndim=1, mode="c"] x = self.x.values
-
-    cdef np.ndarray[double, ndim=1, mode="c"] y = np.zeros([2*sats-2])
-    cdef np.ndarray[double, ndim=2, mode="c"] H = np.zeros([2*sats-2, sats+2])
-    cdef np.ndarray[double, ndim=2, mode="c"] R = np.zeros([2*sats-2, 2*sats-2])
-    observation_model_(sats, &pseudoranges[0], &carrier_phases[0], &x[0], &base_pos[0],
-            &sat_pos[0,0], self.sig_cp, self.sig_pr, &y[0], &H[0,0], &R[0,0])
-
-    return (y, H, R)
+#def observation_model(self,
+#        rover_obs, base_obs,
+#        #np.ndarray[double, ndim=1, mode="c"] x,
+#        base_pos_tuple):
+#
+#    sdiffs = self.get_single_diffs(rover_obs, base_obs, propagate_base=False)
+#    sats = len(sdiffs)
+#    cdef np.ndarray[double, ndim=1, mode="c"] pseudoranges = sdiffs['pseudorange'].values
+#    cdef np.ndarray[double, ndim=1, mode="c"] carrier_phases = sdiffs['carrier_phase'].values
+#    cdef np.ndarray[double, ndim=2, mode="c"] sat_pos = \
+#      np.atleast_2d(base_obs[['sat_x', 'sat_y', 'sat_z']].values.copy(order='c'))
+#    cdef np.ndarray[double, ndim=1, mode="c"] base_pos = np.zeros([3])
+#    base_pos[0] = base_pos_tuple[0]
+#    base_pos[1] = base_pos_tuple[1]
+#    base_pos[2] = base_pos_tuple[2]
+#    cdef np.ndarray[double, ndim=1, mode="c"] x = self.x.values
+#
+#    cdef np.ndarray[double, ndim=1, mode="c"] y = np.zeros([2*sats-2])
+#    cdef np.ndarray[double, ndim=2, mode="c"] H = np.zeros([2*sats-2, sats+2])
+#    cdef np.ndarray[double, ndim=2, mode="c"] R = np.zeros([2*sats-2, 2*sats-2])
+#    observation_model_(sats, &pseudoranges[0], &carrier_phases[0], &x[0], &base_pos[0],
+#            &sat_pos[0,0], self.sig_cp, self.sig_pr, &y[0], &H[0,0], &R[0,0])
+#
+#    return (y, H, R)
 
 # make KF object wrapper for plover implementation
     # init?
