@@ -52,7 +52,6 @@ drop_sat_state
 
   if index >= 0 then (
     dim := sat_state.num_sats; -- slight hack
-    sat_state.num_sats <- dim - 1;
     sat_state.sats[index:dim-1] <- sat_state.sats[index+1:dim];
   ) else (
     printf "ERROR; cannot drop. sat not found: "; print_sat target;
@@ -70,10 +69,10 @@ drop_sat
   printf "DROP: "; print_sat sat; print_sat_state state;
   index := drop_sat_state sat (inout state);
   x_index := sats_index_to_x_index index;
-  -- TODO check
-  dim := state.num_sats+2;
-  state.x[0..dim-1] <- drop_i_1_double x_index state.x[0..dim];
-  state.P[0..dim-1,0..dim-1] <- drop_i_2 x_index (drop_i_2 x_index state.P[0..dim,0..dim]^T)^T;
+  num_states := num_sats_to_num_states state.num_sats;
+  state.x[:num_states-1] <- drop_i_1_double x_index state.x[:num_states];
+  state.P[:num_states-1,:num_states-1] <- drop_i_2 x_index (drop_i_2 index state.P[:num_states,:num_states]^T)^T;
+  state.num_sats <- state.num_sats - 1;
 );
 
 drop_a_sat {n}
