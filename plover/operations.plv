@@ -71,8 +71,9 @@ drop_sat
   x_index := sats_index_to_x_index index;
   num_states := num_sats_to_num_states state.num_sats;
   state.x[:num_states-1] <- drop_i_1_double x_index state.x[:num_states];
-  state.P[:num_states-1,:num_states-1] <- drop_i_2 x_index (drop_i_2 index state.P[:num_states,:num_states]^T)^T;
+  P_temp := drop_i_2 x_index (drop_i_2 x_index state.P[:num_states,:num_states]^T)^T;
   state.num_sats <- state.num_sats - 1;
+  state.P[:num_states-1,:num_states-1] <- P_temp;
 );
 
 drop_a_sat {n}

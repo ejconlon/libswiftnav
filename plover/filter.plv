@@ -138,7 +138,7 @@ direct_observation_model_ {sats}
 
   sig_ratio := sig_cp / (sig_pr / GPS_L1_LAMBDA);
   -- Outputs
-  y <- ((D * carrier_phases) # (sig_ratio * D * pseudoranges));
+  y <- ((D * carrier_phases) # (sig_ratio * D * pseudoranges / GPS_L1_LAMBDA));
 
   eye :: double[sats-1, sats-1];
   eye <- scalar 1.0;

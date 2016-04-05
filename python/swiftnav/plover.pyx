@@ -28,7 +28,7 @@ cdef class CPloverFilter:
         P_max[:] = self.state.P
 
         P_flat[:] = P_max[:(sats+2)*(sats+2)].reshape((sats+2, sats+2))
-        print P_flat
+        #print P_flat
         return P_flat
 
         #self.P = P_flat.reshape((sats+2, sats+2))
