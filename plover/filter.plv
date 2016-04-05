@@ -57,7 +57,7 @@ kalman_update_ {xdim, dim}
   x_new <- x + K * innovation;
   P_new <- (scalar 1.0 - K * H) * P;
 
-  printf "after update:\n"; print_mat P_new; nl ();
+  --printf "after update:\n"; print_mat P_new; nl ();
 );
 
 omega_dot_unit_vector {sats, dim}
@@ -144,11 +144,17 @@ direct_observation_model_ {sats}
   eye <- scalar 1.0;
   zeros :: double[sats-1, sats-1];
   zeros <- 0.0;
-  left := (D * E) # (D * E);
+  left := (D * E) # (sig_ratio * D * E);
   right := eye # zeros;
   H <- (left^T # right^T)^T;
-  --printf "\n H:"; print_mat_upsidedown H;
-  R <- 4 * sig_cp * scalar 1.0; -- TODO
+
+  R_single :: double[sats, sats];
+  R_single <- 2.0 * scalar 1.0;
+  zeros2 :: double[sats-1, sats];
+  zeros2 <- 0.0;
+  D_block := ((D # zeros2)^T # (zeros2 # D)^T)^T;
+  R_block := (((sig_cp * R_single) # scalar 0.0)^T # (scalar 0.0 # (sig_cp * R_single))^T)^T;
+  R <- D_block * R_block * D_block^T;
 );
 
 process_model {dim}
@@ -248,7 +254,7 @@ update_ {n_sdiffs}
   H :: double[2*(n_sdiffs-1), n_sdiffs+2];
   R :: double[2*(n_sdiffs-1), 2*(n_sdiffs-1)];
 
-  orthogonal_observation_model_
+  direct_observation_model_
     (vec i in : -> sdiffs[i].pseudorange)
     (vec i in : -> sdiffs[i].carrier_phase)
     x_new_1[0:3] receiver_ecef sat_positions sig_cp sig_pr
