@@ -64,6 +64,7 @@ struct filter_state (
   ref :: gnss_signal_t;
   sats :: gnss_signal_t[MAX_FILTER_STATE_DIM] storing gnss_signal_t[num_sats-1];
   invalid :: bool;
+  initialized :: bool;
   x :: double[MAX_FILTER_STATE_DIM] storing double[num_sats+2];
   P :: double[MAX_FILTER_STATE_DIM, MAX_FILTER_STATE_DIM] storing double[num_sats+2, num_sats+2];
 );
