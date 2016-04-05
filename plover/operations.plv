@@ -23,19 +23,20 @@ reorder {dim}
 
 add_sat
   (inout state :: filter_state)
-  (sat :: gnss_signal_t)
+  (new_sat :: gnss_signal_t)
   (sig_new_amb :: double)
   :: () := (
-  printf "ADD: "; print_sat sat; print_sat_state state;
-  num := state.num_sats + 1;
-  p_new :: double[num+2, num+2];
+  printf "ADD: "; print_sat new_sat; print_sat_state state;
+  new_num_sats := state.num_sats + 1;
+  new_num_x_states := num_sats_to_num_states new_num_sats;
+  p_new :: double[new_num_x_states, new_num_x_states];
   -- initial off-diagonal covariance = 0
-  p_new <- (add_dimension state.P)[:num+2, :num+2];
-  state.sats[num-2] <- sat;
-  pdim := 3+num-1;
+  p_new <- (add_dimension state.P)[:new_num_x_states, :new_num_x_states];
+  state.sats[new_num_sats-2] <- new_sat;
+  pdim := 3 + new_num_sats - 1;
   state.x[pdim-1] <- 0.0;
   p_new[pdim-1, pdim-1] <- (sig_new_amb^2);
-  state.num_sats <- num; -- this line must happen before the next!
+  state.num_sats <- new_num_sats; -- this line must happen before the next!
   state.P[:pdim, :pdim] <- p_new[:pdim, :pdim];
   --nl (); printf "\nP:\n"; print_mat_upsidedown state.P; nl ();
 );
@@ -137,7 +138,7 @@ change_ref
   sats_index := find_sat sat sat_state.sats;
   x_index := sats_index_to_x_index sats_index;
   change <- scalar 1.0;
-  change[:,x_index] <- -1;
+  change[:,x_index] <- -1.0;
   -- Apply update
   new_x := change * sat_state.x[:num_states];
   new_p := change * sat_state.P[:num_states,:num_states] * change^T;
