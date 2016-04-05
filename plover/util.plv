@@ -139,13 +139,14 @@ add_dimension {dim}
 -- Print utils
 nl () :: () := (printf "\n"; ());
 
-print_sat (s :: gnss_signal_t) :: s32 := printf "%d, " s.sat;
+print_sat (s :: gnss_signal_t) :: s32 := printf "%d" s.sat;
 
 print_sats {n} (s :: gnss_signal_t[n]) :: () := (
   printf "[";
   for i in n -> (
+    if i > 0 then printf ", " else 0;
     print_sat s[i];
-  ); printf "]"; printf "\n"; ();
+  ); printf "]\n"; ();
 );
 
 print_sat_state (s :: filter_state) :: () := (

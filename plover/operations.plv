@@ -67,7 +67,7 @@ drop_sat
   (inout state :: filter_state)
   (sat :: gnss_signal_t)
   :: () := (
-  printf "DROP: "; print_sat sat; print_sat_state state;
+  printf "DROP: "; print_sat sat; printf " from "; print_sat_state state;
   printf "before drop:\n"; print_vec state.x; print_sats state.sats;
   index := drop_sat_state sat (inout state);
   x_index := sats_index_to_x_index index;
@@ -137,20 +137,22 @@ change_ref
   num_states := num_sats_to_num_states sat_state.num_sats;
 
   -- Construct change of basis matrix
-  change :: double[num_states, num_states];
+  x_change :: double[num_states, num_states];
+  p_change :: double[num_states, num_states];
   -- sat == sat_state.sats[j]
   sats_index := find_sat sat sat_state.sats;
   x_index := sats_index_to_x_index sats_index;
-  change <- scalar 1.0;
-  change[:,x_index] <- -1.0;
+  x_change <- scalar 1.0;
+  x_change[3:,x_index] <- -1.0;
+  p_change <- scalar 1.0;
+  p_change[x_index, x_index] <- -1.0;
   -- Apply update
-  new_x := change * sat_state.x[:num_states];
-  new_p := change * sat_state.P[:num_states,:num_states] * change^T;
+  new_x := x_change * sat_state.x[:num_states];
+  new_p := p_change * sat_state.P[:num_states,:num_states] * p_change^T;
 
   -- Update state struct
   sat_state.sats[sats_index] <- sat_state.ref;
   sat_state.ref <- sat;
-  -- TODO fix struct sizing issue
   sat_state.x[:num_states] <- new_x;
   sat_state.P[:num_states,:num_states] <- new_p;
 );

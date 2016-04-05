@@ -227,14 +227,14 @@ update_ {n_sdiffs}
     if index < 0 then (
       kalman_init_ (out state) sdiffs[0].sat_id;
     ) else (
-      printf "CHANGE REF: ";
+      printf "new ref: ";
       print_sat sdiffs[index].sat_id; nl ();
       change_ref (inout state) sdiffs[index].sat_id;
     );
 
   );
 
-  --print_vec state.x;
+  --print_vec state.x; print_sat_state state;
 
   -- Drop any missing sats
   while (drop_a_sat (inout state) new_sats);
