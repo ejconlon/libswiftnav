@@ -68,13 +68,17 @@ drop_sat
   (sat :: gnss_signal_t)
   :: () := (
   printf "DROP: "; print_sat sat; print_sat_state state;
+  printf "before drop:\n"; print_vec state.x; print_sats state.sats;
   index := drop_sat_state sat (inout state);
   x_index := sats_index_to_x_index index;
   num_states := num_sats_to_num_states state.num_sats;
-  state.x[:num_states-1] <- drop_i_1_double x_index state.x[:num_states];
+  x_temp := drop_i_1_double x_index state.x[:num_states];
   P_temp := drop_i_2 x_index (drop_i_2 x_index state.P[:num_states,:num_states]^T)^T;
   state.num_sats <- state.num_sats - 1;
+  state.x[:num_states-1] <- x_temp;
   state.P[:num_states-1,:num_states-1] <- P_temp;
+
+  printf "after drop:\n"; print_vec state.x; print_sats state.sats;
 );
 
 drop_a_sat {n}

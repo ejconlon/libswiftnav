@@ -54,6 +54,8 @@ kalman_update_ {xdim, dim}
   S := H * PHt + R;
   K := PHt * S^(-1) :: double[xdim, dim];
 
+  --printf "innovation: "; print_vec innovation; nl ();
+
   x_new <- x + K * innovation;
   P_new <- (scalar 1.0 - K * H) * P;
 
@@ -88,29 +90,29 @@ orthogonal_observation_model_ {sats}
   (out R :: double[2*(sats-1), 2*(sats-1)])
   :: () := (
 
+  --printf "\npseudo: "; print_vec pseudoranges;
+  --printf "carrier: "; print_vec carrier_phases;
+  --printf "base_pos: "; print_vec base_pos;
+  --printf "sat_positions:\n"; print_mat sat_positions; nl ();
+
   E :: double[sats, 3];
   E <- (omega_dot_unit_vector base_pos sat_positions x[0:3]) / GPS_L1_LAMBDA;
-  --printf "\nE:\n"; print_mat_upsidedown E;
   u :: double[sats];
   u <- -1.0 / sqrt sats;
   u[0] <- u[0] + 1;
 
   P_bar :: double[sats-1, sats];
   P_bar <- (scalar 1.0 - 2 * (u * u^T) / (u * u))[1:];
-  --printf "\nP_bar:\n"; print_mat_upsidedown P_bar;
   F :: double[sats-1, sats-1] :=
     scalar 1.0 - (1 / (sats - sqrt sats));
-  --printf "F:\n"; print_mat_upsidedown F;
   sig_ratio := sig_cp / (sig_pr / GPS_L1_LAMBDA);
 
   -- Outputs
   y <- (P_bar * carrier_phases) #
          (sig_ratio * P_bar * pseudoranges / GPS_L1_LAMBDA);
-  --printf "\ny:\n"; print_mat_upsidedown y;
   -- block: [PE, F; sig_ratio*PE, 0]
   PE := P_bar * E;
   H <- ((PE^T # F^T)^T # ((sig_ratio * PE^T) # scalar 0.0)^T);
-  --printf "\n H:"; print_mat_upsidedown H;
   R <- 4 * sig_cp * scalar 1.0;
 );
 
@@ -176,7 +178,6 @@ update_ {n_sdiffs}
   (inout state :: filter_state)
   (input_sdiffs :: measurement[n_sdiffs])
   (receiver_ecef :: double[3])
-  (sat_positions :: double[n_sdiffs, 3])
   -- ? (raim flag)
   :: () := (
 
@@ -212,12 +213,11 @@ update_ {n_sdiffs}
     );
 
   );
+
+  --print_vec state.x;
+
   -- Drop any missing sats
-  print_vec state.x;
-  print_sat_state state;
   while (drop_a_sat (inout state) new_sats);
-  print_vec state.x;
-  print_sat_state state;
 
   -- Add any new sats
   sig_new_amb := (sig_init_p / GPS_L1_LAMBDA)^2;
@@ -225,8 +225,6 @@ update_ {n_sdiffs}
     if not (contains_sat new_sats[i] state.sats or sid_is_equal new_sats[i] state.ref) then
       add_sat (inout state) new_sats[i] sig_new_amb
   );
-  print_vec state.x;
-  print_sat_state state;
   -- Assert that sat sets are consistent
   assert state.num_sats == n_sdiffs;
   for i in n_sdiffs -> assert (
@@ -254,7 +252,10 @@ update_ {n_sdiffs}
   H :: double[2*(n_sdiffs-1), n_sdiffs+2];
   R :: double[2*(n_sdiffs-1), 2*(n_sdiffs-1)];
 
-  direct_observation_model_
+  sat_positions := (vec i in n_sdiffs -> sdiffs[i].sat_pos);
+  --printf "\nfromsdiffs:\n"; print_mat sat_positions;
+
+  orthogonal_observation_model_
     (vec i in : -> sdiffs[i].pseudorange)
     (vec i in : -> sdiffs[i].carrier_phase)
     x_new_1[0:3] receiver_ecef sat_positions sig_cp sig_pr

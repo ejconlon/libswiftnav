@@ -280,11 +280,10 @@ void dgnss_update(u8 num_sats, sdiff_t *sdiffs, double receiver_ecef[3],
   (void)raim_threshold;
 
   measurement measurements[num_sats];
-  double sat_positions[3 * num_sats];
 
-  sdiffs_convert(num_sats, sdiffs, sat_positions, measurements);
+  sdiffs_convert(num_sats, sdiffs, measurements);
 
-  update_(num_sats, &filter_state_, measurements, receiver_ecef, sat_positions);
+  update_(num_sats, &filter_state_, measurements, receiver_ecef);
 
 }
 

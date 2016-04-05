@@ -41,20 +41,22 @@ cdef class CPloverFilter:
         # 0 filter_state = self.state
         # 1 measurements
         sats = len(sdiffs)
-        #cdef np.ndarray[measurement, ndim=1, mode="c"] measurements = np.empty(sats)
         cdef measurement *measurements = <measurement *>malloc(sats*sizeof(measurement))
-        #for i, sdiff in enumerate(list(sdiffs.iterrows()))
-        #import ipdb
+        # sat_pos
+        cdef np.ndarray[double, ndim=2, mode="c"] sat_pos = \
+          np.atleast_2d(base_obs[['sat_x', 'sat_y', 'sat_z']].values.copy(order='c'))
+
         for i in range(sdiffs.shape[0]):
             sdiff = sdiffs.ix[i]
-
-            #ipdb.set_trace()
 
             measurements[i].pseudorange = sdiff['pseudorange']
             measurements[i].carrier_phase = sdiff['carrier_phase']
             measurements[i].snr = sdiff['signal_noise_ratio']
             measurements[i].sat_id.sat = int(sdiff['sat'])
             measurements[i].sat_id.code = convert_code(sdiff['band'])
+            measurements[i].sat_pos[0] = sdiff['sat_x']
+            measurements[i].sat_pos[1] = sdiff['sat_y']
+            measurements[i].sat_pos[2] = sdiff['sat_z']
 
         # 2 base_pos
         cdef np.ndarray[double, ndim=1, mode="c"] base_pos = np.zeros([3])
@@ -62,14 +64,10 @@ cdef class CPloverFilter:
         base_pos[1] = receiver_ecef[1]
         base_pos[2] = receiver_ecef[2]
 
-        # 3 sat_pos
-        cdef np.ndarray[double, ndim=2, mode="c"] sat_pos = \
-          np.atleast_2d(base_obs[['sat_x', 'sat_y', 'sat_z']].values.copy(order='c'))
-
         #cdef filter_state *s = <filter_state *>malloc(0)
         #free(s)
         #update_(sats, s, &measurements[0], &base_pos[0], &sat_pos[0,0])
-        update_(sats, &self.state, &measurements[0], &base_pos[0], &sat_pos[0,0])
+        update_(sats, &self.state, &measurements[0], &base_pos[0])
         free(measurements)
 
 
