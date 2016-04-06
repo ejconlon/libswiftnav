@@ -23,7 +23,7 @@ iterative_least_squares {n_sdiffs}
 
   y :: double[2*(n_sdiffs-1)];
   H :: double[2*(n_sdiffs-1), n_sdiffs+2];
-  R :: double[2*(n_sdiffs-1), 2*(n_sdiffs-1)];
+  R :: Scalar double[2*(n_sdiffs-1), 2*(n_sdiffs-1)];
 
   max_iterations := 5;
   for j in max_iterations -> (
@@ -58,8 +58,8 @@ kalman_init_
 kalman_predict_ {dim}
   (x :: double[dim])
   (P :: double[dim, dim])
-  (F :: double[dim, dim])
-  (Q :: double[dim, dim])
+  (F :: Scalar double[dim, dim])
+  (Q :: Diagonal double[dim, dim])
   (out x_new :: double[dim])
   (out P_new :: double[dim, dim])
   :: () := (
@@ -72,7 +72,7 @@ kalman_update_ {xdim, dim}
   (P :: double[xdim, xdim])
   (y :: double[dim])
   (H :: double[dim, xdim])
-  (R :: double[dim, dim])
+  (R :: Scalar double[dim, dim])
   (out x_new :: double[xdim])
   (out P_new :: double[xdim, xdim])
   :: () := (
@@ -112,7 +112,7 @@ orthogonal_observation_model_ {sats}
 
   (out y :: double[2*(sats-1)])
   (out H :: double[2*(sats-1), 3+(sats-1)])
-  (out R :: double[2*(sats-1), 2*(sats-1)])
+  (out R :: Scalar double[2*(sats-1), 2*(sats-1)])
   :: () := (
 
   E :: double[sats, 3];
@@ -180,8 +180,8 @@ direct_observation_model_ {sats}
 );
 
 process_model {dim}
-  (out F :: double[dim, dim])
-  (out Q :: double[dim, dim])
+  (out F :: Scalar double[dim, dim])
+  (out Q :: Diagonal double[dim, dim])
   (sig_x :: double)
   (sig_z :: double)
   :: () := (
@@ -189,9 +189,7 @@ process_model {dim}
   diagonal :: double[dim];
   diagonal[:3] <- (sig_x^2);
   diagonal[3:] <- (sig_z^2);
-  sigma :: Diagonal double[dim, dim];
-  sigma <- diagonal;
-  Q <- sigma;
+  Q <- diagonal;
 );
 
 update_ {n_sdiffs}
@@ -208,8 +206,6 @@ update_ {n_sdiffs}
   sig_z := 10.0;
   sig_init_p := 1.0e3;
 
-  -- We want to reorder them
-  sdiffs := input_sdiffs;
 
   -- Filter reset
   if n_sdiffs == 0 then (
@@ -217,19 +213,19 @@ update_ {n_sdiffs}
     state <- make_filter_state ();
     return;
   );
-  if state.invalid then kalman_init_ (out state) sdiffs[0].sat_id;
+  if state.invalid then kalman_init_ (out state) input_sdiffs[0].sat_id;
 
-  new_sats := vec i in n_sdiffs -> sdiffs[i].sat_id;
+  new_sats := vec i in n_sdiffs -> input_sdiffs[i].sat_id;
 
   -- Update the reference
   if not (contains_sat state.ref new_sats) then (
-    index := choose_ref state sdiffs;
+    index := choose_ref state input_sdiffs;
     if index < 0 then (
-      kalman_init_ (out state) sdiffs[0].sat_id;
+      kalman_init_ (out state) input_sdiffs[0].sat_id;
     ) else (
       printf "new ref: ";
-      print_sat sdiffs[index].sat_id; nl ();
-      change_ref (inout state) sdiffs[index].sat_id;
+      print_sat input_sdiffs[index].sat_id; nl ();
+      change_ref (inout state) input_sdiffs[index].sat_id;
     );
 
   );
@@ -249,15 +245,19 @@ update_ {n_sdiffs}
   -- Assert that sat sets are consistent
   assert state.num_sats == n_sdiffs;
   for i in n_sdiffs -> assert (
-    contains_sat sdiffs[i].sat_id state.sats or
-    sid_is_equal sdiffs[i].sat_id state.ref
+    contains_sat input_sdiffs[i].sat_id state.sats or
+    sid_is_equal input_sdiffs[i].sat_id state.ref
   );
 
   -- Begin KF update
 
+  -- We want to reorder and "resize" the sdiffs
+  sdiffs :: measurement[state.num_sats];
+  sdiffs <- input_sdiffs[:state.num_sats];
+
   -- reorder sdiffs
-  reorder (vec(state.ref) # state.sats[:n_sdiffs-1]) (inout sdiffs);
-  sat_positions := (vec i in n_sdiffs -> sdiffs[i].sat_pos);
+  reorder (vec(state.ref) # state.sats) (inout sdiffs);
+  sat_positions := (vec i in state.num_sats -> sdiffs[i].sat_pos);
 
   if not state.initialized then (
     iterative_least_squares (inout state) sdiffs receiver_ecef sat_positions sig_cp sig_pr;
@@ -266,19 +266,19 @@ update_ {n_sdiffs}
   );
 
   -- Process model
-  F :: double[n_sdiffs+2, n_sdiffs+2];
-  Q :: double[n_sdiffs+2, n_sdiffs+2];
+  F :: Scalar double[state.num_sats+2, state.num_sats+2];
+  Q :: Diagonal double[state.num_sats+2, state.num_sats+2];
   process_model (out F) (out Q) sig_x sig_z;
 
-  x_new_1 :: double[n_sdiffs+2];
-  P_new_1 :: double[n_sdiffs+2, n_sdiffs+2];
-  kalman_predict_ state.x[:n_sdiffs+2] state.P[:n_sdiffs+2,:n_sdiffs+2]
+  x_new_1 :: double[state.num_sats+2];
+  P_new_1 :: double[state.num_sats+2, state.num_sats+2];
+  kalman_predict_ state.x state.P
     F Q (out x_new_1) (out P_new_1);
 
   -- Measurement update
-  y :: double[2*(n_sdiffs-1)];
-  H :: double[2*(n_sdiffs-1), n_sdiffs+2];
-  R :: double[2*(n_sdiffs-1), 2*(n_sdiffs-1)];
+  y :: double[2*(state.num_sats-1)];
+  H :: double[2*(state.num_sats-1), state.num_sats+2];
+  R :: Scalar double[2*(state.num_sats-1), 2*(state.num_sats-1)];
 
   orthogonal_observation_model_
     (vec i in : -> sdiffs[i].pseudorange)
@@ -286,11 +286,7 @@ update_ {n_sdiffs}
     x_new_1[0:3] receiver_ecef sat_positions sig_cp sig_pr
     (out y) (out H) (out R);
 
-  x_new_2 :: double[n_sdiffs+2];
-  P_new_2 :: double[n_sdiffs+2, n_sdiffs+2];
+  -- Save a temporary by storing directly into state struct
   kalman_update_ x_new_1 P_new_1 y H R
-    (out x_new_2) (out P_new_2);
-
-  state.x[:n_sdiffs+2] <- x_new_2;
-  state.P[:n_sdiffs+2, :n_sdiffs+2] <- P_new_2;
+    (out state.x) (out state.P);
 );
