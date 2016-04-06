@@ -1,13 +1,13 @@
 import prelude;
 import qr;
 import util;
+import constants;
 
 -- ADD SAT --
 
 add_sats {n_sdiffs}
   (inout state :: filter_state)
   (sdiff_sats :: gnss_signal_t[n_sdiffs])
-  (sig_init_p :: double)
   :: () := (
   sig_new_amb := (sig_init_p / GPS_L1_LAMBDA)^2;
   for i in n_sdiffs -> (
@@ -92,13 +92,14 @@ drop_sats {n}
 choose_ref {dim}
   (state :: filter_state)
   (measurements :: measurement[dim])
+  (ignore_current_sats :: bool)
   :: s32 := (
 
   index := -1;
   max_snr := -1000.0; -- TODO check units
   for i in dim -> (
     m := measurements[i];
-    if m.snr >= max_snr and contains_sat m.sat_id state.sats then (
+    if m.snr >= max_snr and (ignore_current_sats or contains_sat m.sat_id state.sats) then (
         max_snr <- measurements[i].snr;
         index   <- i;
     ) else ();

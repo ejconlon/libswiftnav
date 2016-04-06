@@ -153,9 +153,11 @@ void dgnss_init(u8 num_sats, sdiff_t *sdiffs, double receiver_ecef[3])
     return;
   }
 
-  // TODO: choose ref (based on SNR?)
-  // Marks state as valid and marks the reference sat.
-  kalman_init_(&filter_state_, sdiffs[0].sid);
+  measurement measurements[num_sats];
+
+  sdiffs_convert(num_sats, sdiffs, measurements);
+
+  kalman_init_(num_sats, &filter_state_, measurements, receiver_ecef);
 
   DEBUG_EXIT();
 }

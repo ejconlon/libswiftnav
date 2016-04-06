@@ -10,7 +10,6 @@ make_filter_state () :: filter_state := (
   s :: filter_state;
   s.invalid <- True;
   s.num_sats <- 0;
-  s.initialized <- False;
   s;
 );
 
@@ -40,20 +39,33 @@ iterative_least_squares {n_sdiffs}
   );
 );
 
-kalman_init_
-  (out state :: filter_state)
-  (ref :: gnss_signal_t)
+kalman_init_ {n_sdiffs}
+  (inout state :: filter_state)
+  (input_sdiffs :: measurement[n_sdiffs])
+  (receiver_ecef :: double[3])
   :: () := (
-  sig_init_p := 1.0e3;
-  printf "Reset Filter! new reference: "; print_sat ref; nl ();
+  index := choose_ref state input_sdiffs True;
+  ref_sat := input_sdiffs[index].sat_id;
+  change_ref (inout state) ref_sat;
+  printf "Reset Filter! new reference: "; print_sat ref_sat; nl ();
   state.num_sats <- 1;
-  state.ref <- ref;
+  state.ref <- ref_sat;
   state.invalid <- False;
-  state.initialized <- False;
   state.x <- 0.0;
   position_covariance :: double[state.num_sats + 2, state.num_sats + 2];
   position_covariance[:3, :3] <- scalar (sig_init_p^2);
   state.P <- position_covariance;
+
+  sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sat_id;
+
+  add_sats (inout state) sdiff_sats;
+
+  sdiffs :: measurement[state.num_sats];
+  sdiffs <- input_sdiffs[:state.num_sats];
+  reorder (vec(state.ref) # state.sats) (inout sdiffs);
+  sat_positions := (vec i in state.num_sats -> sdiffs[i].sat_pos);
+
+  iterative_least_squares (inout state) sdiffs receiver_ecef sat_positions;
 );
 
 kalman_predict_ {dim}
@@ -101,15 +113,17 @@ update_ {n_sdiffs}
     state <- make_filter_state ();
     return;
   );
-  if state.invalid then kalman_init_ (out state) input_sdiffs[0].sat_id;
+
+  if state.invalid then kalman_init_ (inout state) input_sdiffs receiver_ecef;
 
   sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sat_id;
 
   -- Update the reference
   if not (contains_sat state.ref sdiff_sats) then (
-    index := choose_ref state input_sdiffs;
+    index := choose_ref state input_sdiffs False;
     if index < 0 then (
-      kalman_init_ (out state) input_sdiffs[0].sat_id;
+      printf "No reference found! Resetting";
+      kalman_init_ (inout state) input_sdiffs receiver_ecef
     ) else (
       printf "new ref: ";
       print_sat input_sdiffs[index].sat_id; nl ();
@@ -121,7 +135,7 @@ update_ {n_sdiffs}
   drop_sats (inout state) sdiff_sats;
 
   -- Add any new sats
-  add_sats (inout state) sdiff_sats sig_init_p;
+  add_sats (inout state) sdiff_sats;
 
   -- Assert that sat sets are consistent
   assert state.num_sats == n_sdiffs;
@@ -135,12 +149,6 @@ update_ {n_sdiffs}
   sdiffs <- input_sdiffs[:state.num_sats];
   reorder (vec(state.ref) # state.sats) (inout sdiffs);
   sat_positions := (vec i in state.num_sats -> sdiffs[i].sat_pos);
-
-  if not state.initialized then (
-    iterative_least_squares (inout state) sdiffs receiver_ecef sat_positions;
-    state.initialized <- True;
-    return;
-  );
 
   -- Process model
   F :: Scalar double[state.num_sats+2, state.num_sats+2];
