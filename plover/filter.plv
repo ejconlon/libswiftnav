@@ -19,7 +19,6 @@ iterative_least_squares {n_sdiffs}
   (sdiffs :: measurement[n_sdiffs])
   (receiver_ecef :: double[3])
   (sat_positions :: double[n_sdiffs, 3])
-  (sig_cp :: double) (sig_pr :: double)
   :: () := (
 
   y :: double[2*(n_sdiffs-1)];
@@ -32,8 +31,7 @@ iterative_least_squares {n_sdiffs}
     orthogonal_observation_model_
     (vec i in : -> sdiffs[i].pseudorange)
     (vec i in : -> sdiffs[i].carrier_phase)
-    state.x[0:3] receiver_ecef sat_positions sig_cp sig_pr
-    (out y) (out H) (out R);
+    state.x[0:3] receiver_ecef sat_positions (out y) (out H) (out R);
     y_hat := y - H * state.x[:n_sdiffs+2];
     delta_x_hat :: double[n_sdiffs+2];
     residual :: double;
@@ -97,14 +95,6 @@ update_ {n_sdiffs}
   -- ? (raim flag)
   :: () := (
 
-  -- TODO - Tune these constants
-  sig_cp := 0.02;
-  sig_pr := 3.0;
-  sig_x := 0.1;
-  sig_z := 10.0;
-  sig_init_p := 1.0e3;
-
-
   -- Filter reset
   if n_sdiffs == 0 then (
     printf "empty filter\n";
@@ -147,7 +137,7 @@ update_ {n_sdiffs}
   sat_positions := (vec i in state.num_sats -> sdiffs[i].sat_pos);
 
   if not state.initialized then (
-    iterative_least_squares (inout state) sdiffs receiver_ecef sat_positions sig_cp sig_pr;
+    iterative_least_squares (inout state) sdiffs receiver_ecef sat_positions;
     state.initialized <- True;
     return;
   );
@@ -155,7 +145,7 @@ update_ {n_sdiffs}
   -- Process model
   F :: Scalar double[state.num_sats+2, state.num_sats+2];
   Q :: Diagonal double[state.num_sats+2, state.num_sats+2];
-  process_model (out F) (out Q) sig_x sig_z;
+  process_model (out F) (out Q);
 
   x_new_1 :: double[state.num_sats+2];
   P_new_1 :: double[state.num_sats+2, state.num_sats+2];
@@ -170,7 +160,7 @@ update_ {n_sdiffs}
   orthogonal_observation_model_
     (vec i in : -> sdiffs[i].pseudorange)
     (vec i in : -> sdiffs[i].carrier_phase)
-    x_new_1[0:3] receiver_ecef sat_positions sig_cp sig_pr
+    x_new_1[0:3] receiver_ecef sat_positions
     (out y) (out H) (out R);
 
   -- Save a temporary by storing directly into state struct

@@ -1,0 +1,6 @@
+-- TODO - Tune these constants
+sig_cp :: double := 0.02;
+sig_pr :: double := 3.0;
+sig_x :: double := 0.1;
+sig_z :: double := 10.0;
+sig_init_p :: double := 1.0e3;

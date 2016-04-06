@@ -44,6 +44,7 @@ set (PLOVER_UNITS
   ambiguities
   observation_models
   process_models
+  constants
 )
 
 foreach(unit ${PLOVER_UNITS})

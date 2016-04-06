@@ -1,10 +1,9 @@
 import prelude;
+import constants;
 
 process_model {dim}
   (out F :: Scalar double[dim, dim])
   (out Q :: Diagonal double[dim, dim])
-  (sig_x :: double)
-  (sig_z :: double)
   :: () := (
   F <- scalar 1.0;
   diagonal :: double[dim];
