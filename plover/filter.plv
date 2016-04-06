@@ -110,10 +110,10 @@ update_ {n_sdiffs}
   );
   if state.invalid then kalman_init_ (out state) input_sdiffs[0].sat_id;
 
-  new_sats := vec i in n_sdiffs -> input_sdiffs[i].sat_id;
+  sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sat_id;
 
   -- Update the reference
-  if not (contains_sat state.ref new_sats) then (
+  if not (contains_sat state.ref sdiff_sats) then (
     index := choose_ref state input_sdiffs;
     if index < 0 then (
       kalman_init_ (out state) input_sdiffs[0].sat_id;
@@ -122,20 +122,13 @@ update_ {n_sdiffs}
       print_sat input_sdiffs[index].sat_id; nl ();
       change_ref (inout state) input_sdiffs[index].sat_id;
     );
-
   );
-
-  --print_vec state.x; print_sat_state state;
 
   -- Drop any missing sats
-  while (drop_a_sat (inout state) new_sats);
+  drop_sats (inout state) sdiff_sats;
 
   -- Add any new sats
-  sig_new_amb := (sig_init_p / GPS_L1_LAMBDA)^2;
-  for i in n_sdiffs -> (
-    if not (contains_sat new_sats[i] state.sats or sid_is_equal new_sats[i] state.ref) then
-      add_sat (inout state) new_sats[i] sig_new_amb
-  );
+  add_sats (inout state) sdiff_sats sig_init_p;
 
   -- Assert that sat sets are consistent
   assert state.num_sats == n_sdiffs;
@@ -144,13 +137,9 @@ update_ {n_sdiffs}
     sid_is_equal input_sdiffs[i].sat_id state.ref
   );
 
-  -- Begin KF update
-
-  -- We want to reorder and "resize" the sdiffs
+  -- We want to reorder and "resize" the sdiffs and sat_positions
   sdiffs :: measurement[state.num_sats];
   sdiffs <- input_sdiffs[:state.num_sats];
-
-  -- reorder sdiffs
   reorder (vec(state.ref) # state.sats) (inout sdiffs);
   sat_positions := (vec i in state.num_sats -> sdiffs[i].sat_pos);
 

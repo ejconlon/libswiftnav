@@ -4,6 +4,18 @@ import util;
 
 -- ADD SAT --
 
+add_sats {n_sdiffs}
+  (inout state :: filter_state)
+  (sdiff_sats :: gnss_signal_t[n_sdiffs])
+  (sig_init_p :: double)
+  :: () := (
+  sig_new_amb := (sig_init_p / GPS_L1_LAMBDA)^2;
+  for i in n_sdiffs -> (
+    if not (contains_sat sdiff_sats[i] state.sats or sid_is_equal sdiff_sats[i] state.ref) then
+      add_sat (inout state) sdiff_sats[i] sig_new_amb
+  );
+);
+
 add_sat
   (inout state :: filter_state)
   (new_sat :: gnss_signal_t)
@@ -21,7 +33,7 @@ add_sat
   p_new[pdim-1, pdim-1] <- (sig_new_amb^2);
   state.num_sats <- new_num_sats; -- this line must happen before the next!
   state.P[:pdim, :pdim] <- p_new[:pdim, :pdim];
-  --nl (); printf "\nP:\n"; print_mat_upsidedown state.P; nl ();
+  --nl (); printf "\nP:\n"; print_mat state.P; nl ();
 );
 
 -- DROP SAT --
@@ -64,20 +76,16 @@ drop_sat
   printf "after drop:\n"; print_vec state.x; print_sats state.sats;
 );
 
-drop_a_sat {n}
+drop_sats {n}
   (inout state :: filter_state)
-  (sats :: gnss_signal_t[n])
-  :: bool := (
+  (sdiff_sats :: gnss_signal_t[n])
+  :: () := (
   for i in state.num_sats - 1 -> (
-    if not (contains_sat state.sats[i] sats) then (
+    if not (contains_sat state.sats[i] sdiff_sats) then (
       drop_sat (inout state) state.sats[i];
-      return True;
     );
   );
-  return False;
 );
-
-
 
 -- CHOOSE REF --
 
