@@ -24,14 +24,13 @@ cdef class CPloverFilter:
     def get_P(self):
         cdef int sats = self.state.num_sats
         cdef np.ndarray[double, ndim=2, mode="c"] P_flat = np.zeros([sats+2, sats+2])
-        cdef np.ndarray[double, ndim=1, mode="c"] P_max = np.zeros([225])
+        # stored in struct as flat array of maximum possible size
+        max_size = MAX_FILTER_STATE_DIM * MAX_FILTER_STATE_DIM
+        cdef np.ndarray[double, ndim=1, mode="c"] P_max = np.zeros([max_size])
         P_max[:] = self.state.P
 
         P_flat[:] = P_max[:(sats+2)*(sats+2)].reshape((sats+2, sats+2))
-        #print P_flat
         return P_flat
-
-        #self.P = P_flat.reshape((sats+2, sats+2))
 
     def get_baseline(self):
         x, y, z = self.state.x[0], self.state.x[1], self.state.x[2]
@@ -125,16 +124,3 @@ def inverse(np.ndarray[double, ndim=2, mode="c"] P):
 #            &sat_pos[0,0], self.sig_cp, self.sig_pr, &y[0], &H[0,0], &R[0,0])
 #
 #    return (y, H, R)
-
-# make KF object wrapper for plover implementation
-    # init?
-    # structs in cython?
-# construct arguments to update_
-# test suite
-#def update(  ):
-#    pass
-#    #filter_state ?
-#    #measurements[sats] ?
-#
-#    #receiver_ecef[3]
-#    #sat_positions[sats, 3]
