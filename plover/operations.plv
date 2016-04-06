@@ -142,8 +142,9 @@ change_ref
   -- sat == sat_state.sats[j]
   sats_index := find_sat sat sat_state.sats;
   x_index := sats_index_to_x_index sats_index;
+  ref_index := sats_index_to_x_index 0;
   x_change <- scalar 1.0;
-  x_change[3:,x_index] <- -1.0;
+  x_change[ref_index:,x_index] <- -1.0;
   p_change <- scalar 1.0;
   p_change[x_index, x_index] <- -1.0;
   -- Apply update
