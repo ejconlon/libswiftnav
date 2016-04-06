@@ -39,9 +39,11 @@ set (PLOVER_UNITS
   qr
   util
   filter
-  operations
   rand
   plover_lib
+  ambiguities
+  observation_models
+  process_models
 )
 
 foreach(unit ${PLOVER_UNITS})

@@ -69,6 +69,24 @@ struct filter_state (
   P :: double[MAX_FILTER_STATE_DIM, MAX_FILTER_STATE_DIM] storing double[num_sats+2, num_sats+2];
 );
 
+-- Reorder sdiffs
+reorder {dim}
+  (ordering :: gnss_signal_t[dim])
+  (inout measurements :: measurement[dim])
+  :: () := (
+  -- sort the measurements according to ordering
+  for i in dim -> (
+    for j in i:dim -> (
+      if sid_is_equal measurements[j].sat_id ordering[i] then (
+        temp := measurements[i];
+        measurements[i] <- measurements[j];
+        measurements[j] <- temp;
+      );
+    );
+  );
+  for i in dim -> assert sid_is_equal measurements[i].sat_id ordering[i];
+);
+
 -- TODO base type polymorphism
 drop_i_1_double {d}
   (i :: u32)

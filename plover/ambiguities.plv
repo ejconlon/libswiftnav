@@ -1,23 +1,6 @@
 import prelude;
+import qr;
 import util;
-
--- Reorder sdiffs
-reorder {dim}
-  (ordering :: gnss_signal_t[dim])
-  (inout measurements :: measurement[dim])
-  :: () := (
-  -- sort the measurements according to ordering
-  for i in dim -> (
-    for j in i:dim -> (
-      if sid_is_equal measurements[j].sat_id ordering[i] then (
-        temp := measurements[i];
-        measurements[i] <- measurements[j];
-        measurements[j] <- temp;
-      );
-    );
-  );
-  for i in dim -> assert sid_is_equal measurements[i].sat_id ordering[i];
-);
 
 -- ADD SAT --
 
