@@ -35,7 +35,10 @@ iterative_least_squares {n_sdiffs}
     state.x[0:3] receiver_ecef sat_positions sig_cp sig_pr
     (out y) (out H) (out R);
     y_hat := y - H * state.x[:n_sdiffs+2];
-    state.x[:n_sdiffs+2] <- state.x[:n_sdiffs+2] + (H^T * H)^(-1) * H^T * y_hat;
+    delta_x_hat :: double[n_sdiffs+2];
+    residual :: double;
+    qr_solve (inout H^T * H) (inout H^T * y_hat) (out delta_x_hat) (out residual);
+    state.x[:n_sdiffs+2] <- state.x[:n_sdiffs+2] + delta_x_hat;
   );
 );
 
