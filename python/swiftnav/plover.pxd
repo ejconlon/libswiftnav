@@ -37,6 +37,8 @@ cdef extern from "libswiftnav/plover/plover_lib.h":
 
     void update_ (const s32 dim, filter_state * const state, const sdiff_t * input_sdiffs, const double * receiver_ecef);
 
+    void change_ref(filter_state *const sat_state, const gnss_signal_t sat)
+
 cdef extern from "libswiftnav/signal.h":
     enum:
       CODE_INVALID

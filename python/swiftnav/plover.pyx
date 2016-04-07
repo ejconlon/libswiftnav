@@ -1,12 +1,10 @@
-#from swiftnav cimport plover
 import numpy as np
 cimport numpy as np
 import pandas as pd
 from libc.stdlib cimport malloc, free
+from gnss_analysis.io.common import create_sid
 
-#def to_index(gnss_signal_t s):
-#  dd_N, string-band, string-satid
-
+# TODO add other codes
 def convert_code(band):
     mapping = {
         '1': CODE_GPS_L1CA,
@@ -15,13 +13,54 @@ def convert_code(band):
     assert band in mapping
     return mapping[band]
 
+# TODO add other codes
+def from_code(band):
+    mapping = {
+        CODE_GPS_L1CA: '1',
+        CODE_GPS_L2CM: '2',
+    }
+    assert band in mapping
+    return mapping[band]
+
+def sat_pad(sat):
+    if sat < 10:
+        return '0' + str(sat)
+    else:
+        return str(sat)
+
 cdef class CPloverFilter:
     cdef filter_state state;
 
     def __init__(self):
         self.state = make_filter_state();
 
-    def get_P(self):
+    def get_ref_id(self):
+        # TODO return band too
+        return create_sid('GPS', sat_pad(self.state.ref.sat), from_code(self.state.ref.code))
+    def get_knowns(self):
+        ref_tuples = [('reference_N',  '1', str(self.get_ref_id()))]
+        ref_index = pd.MultiIndex.from_tuples(ref_tuples,
+                                              names=('type', 'group', 'name'))
+        knowns = pd.Series(0., index=ref_index)
+        return knowns
+
+    def change_reference_signal(self, int new_ref):
+        cdef gnss_signal_t s
+        s.sat = new_ref
+        s.code = CODE_GPS_L1CA
+        change_ref(&self.state, s)
+
+    def get_state(self):
+        cdef int sats = self.state.num_sats
+        cdef np.ndarray[double, ndim=1, mode="c"] x_flat = np.zeros([sats+2])
+        # stored in struct as flat array of maximum possible size
+        max_size = MAX_FILTER_STATE_DIM
+        cdef np.ndarray[double, ndim=1, mode="c"] x_max = np.zeros([max_size])
+        x_max[:] = self.state.x
+
+        x_flat[:] = x_max[:sats+2]
+        return x_flat
+    def get_covariance(self):
         cdef int sats = self.state.num_sats
         cdef np.ndarray[double, ndim=2, mode="c"] P_flat = np.zeros([sats+2, sats+2])
         # stored in struct as flat array of maximum possible size
