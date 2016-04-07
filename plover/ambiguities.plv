@@ -76,15 +76,24 @@ drop_sat
   printf "after drop:\n"; print_vec state.x; print_sats state.sats;
 );
 
+drop_a_sat {n}
+  (inout state :: filter_state)
+  (sdiff_sats :: gnss_signal_t[n])
+  :: bool := (
+  for i in state.num_sats - 1 -> (
+    if not (contains_sat state.sats[i] sdiff_sats) then (
+      drop_sat (inout state) state.sats[i];
+      return True;
+    );
+  );
+  return False;
+);
+
 drop_sats {n}
   (inout state :: filter_state)
   (sdiff_sats :: gnss_signal_t[n])
   :: () := (
-  for i in state.num_sats - 1 -> (
-    if not (contains_sat state.sats[i] sdiff_sats) then (
-      drop_sat (inout state) state.sats[i];
-    );
-  );
+    while (drop_a_sat (inout state) sdiff_sats);
 );
 
 -- CHOOSE REF --
