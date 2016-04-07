@@ -40,7 +40,7 @@ cdef class CPloverFilter:
         # 0 filter_state = self.state
         # 1 measurements
         sats = len(sdiffs)
-        cdef measurement *measurements = <measurement *>malloc(sats*sizeof(measurement))
+        cdef sdiff_t *sdiffs_converted = <sdiff_t *>malloc(sats*sizeof(sdiff_t))
         # sat_pos
         cdef np.ndarray[double, ndim=2, mode="c"] sat_pos = \
           np.atleast_2d(base_obs[['sat_x', 'sat_y', 'sat_z']].values.copy(order='c'))
@@ -48,14 +48,14 @@ cdef class CPloverFilter:
         for i in range(sdiffs.shape[0]):
             sdiff = sdiffs.ix[i]
 
-            measurements[i].pseudorange = sdiff['pseudorange']
-            measurements[i].carrier_phase = sdiff['carrier_phase']
-            measurements[i].snr = sdiff['signal_noise_ratio']
-            measurements[i].sat_id.sat = int(sdiff['sat'])
-            measurements[i].sat_id.code = convert_code(sdiff['band'])
-            measurements[i].sat_pos[0] = sdiff['sat_x']
-            measurements[i].sat_pos[1] = sdiff['sat_y']
-            measurements[i].sat_pos[2] = sdiff['sat_z']
+            sdiffs_converted[i].pseudorange = sdiff['pseudorange']
+            sdiffs_converted[i].carrier_phase = sdiff['carrier_phase']
+            sdiffs_converted[i].snr = sdiff['signal_noise_ratio']
+            sdiffs_converted[i].sid.sat = int(sdiff['sat'])
+            sdiffs_converted[i].sid.code = convert_code(sdiff['band'])
+            sdiffs_converted[i].sat_pos[0] = sdiff['sat_x']
+            sdiffs_converted[i].sat_pos[1] = sdiff['sat_y']
+            sdiffs_converted[i].sat_pos[2] = sdiff['sat_z']
 
         # 2 base_pos
         cdef np.ndarray[double, ndim=1, mode="c"] base_pos = np.zeros([3])
@@ -65,9 +65,9 @@ cdef class CPloverFilter:
 
         #cdef filter_state *s = <filter_state *>malloc(0)
         #free(s)
-        #update_(sats, s, &measurements[0], &base_pos[0], &sat_pos[0,0])
-        update_(sats, &self.state, &measurements[0], &base_pos[0])
-        free(measurements)
+        #update_(sats, s, &sdiff_t[0], &base_pos[0], &sat_pos[0,0])
+        update_(sats, &self.state, &sdiffs_converted[0], &base_pos[0])
+        free(sdiffs_converted)
 
 
 def kalman_predict(

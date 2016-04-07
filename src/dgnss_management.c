@@ -153,11 +153,7 @@ void dgnss_init(u8 num_sats, sdiff_t *sdiffs, double receiver_ecef[3])
     return;
   }
 
-  measurement measurements[num_sats];
-
-  sdiffs_convert(num_sats, sdiffs, measurements);
-
-  kalman_init_(num_sats, &filter_state_, measurements, receiver_ecef);
+  kalman_init_(num_sats, &filter_state_, sdiffs, receiver_ecef);
 
   DEBUG_EXIT();
 }
@@ -281,11 +277,7 @@ void dgnss_update(u8 num_sats, sdiff_t *sdiffs, double receiver_ecef[3],
   (void)disable_raim;
   (void)raim_threshold;
 
-  measurement measurements[num_sats];
-
-  sdiffs_convert(num_sats, sdiffs, measurements);
-
-  update_(num_sats, &filter_state_, measurements, receiver_ecef);
+  update_(num_sats, &filter_state_, sdiffs, receiver_ecef);
 
 }
 

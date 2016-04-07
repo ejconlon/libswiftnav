@@ -91,16 +91,16 @@ drop_sats {n}
 
 choose_ref {dim}
   (state :: filter_state)
-  (measurements :: measurement[dim])
+  (sdiffs :: sdiff_t[dim])
   (ignore_current_sats :: bool)
   :: s32 := (
 
   index := -1;
   max_snr := -1000.0; -- TODO check units
   for i in dim -> (
-    m := measurements[i];
-    if m.snr >= max_snr and (ignore_current_sats or contains_sat m.sat_id state.sats) then (
-        max_snr <- measurements[i].snr;
+    m := sdiffs[i];
+    if m.snr >= max_snr and (ignore_current_sats or contains_sat m.sid state.sats) then (
+        max_snr <- sdiffs[i].snr;
         index   <- i;
     ) else ();
   );

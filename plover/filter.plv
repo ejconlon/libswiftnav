@@ -15,7 +15,7 @@ make_filter_state () :: filter_state := (
 
 iterative_least_squares {n_sdiffs}
   (inout state :: filter_state)
-  (sdiffs :: measurement[n_sdiffs])
+  (sdiffs :: sdiff_t[n_sdiffs])
   (receiver_ecef :: double[3])
   (sat_positions :: double[n_sdiffs, 3])
   :: () := (
@@ -41,11 +41,11 @@ iterative_least_squares {n_sdiffs}
 
 kalman_init_ {n_sdiffs}
   (inout state :: filter_state)
-  (input_sdiffs :: measurement[n_sdiffs])
+  (input_sdiffs :: sdiff_t[n_sdiffs])
   (receiver_ecef :: double[3])
   :: () := (
   index := choose_ref state input_sdiffs True;
-  ref_sat := input_sdiffs[index].sat_id;
+  ref_sat := input_sdiffs[index].sid;
   change_ref (inout state) ref_sat;
   printf "Reset Filter! new reference: "; print_sat ref_sat; nl ();
   state.num_sats <- 1;
@@ -56,11 +56,11 @@ kalman_init_ {n_sdiffs}
   position_covariance[:3, :3] <- scalar (sig_init_p^2);
   state.P <- position_covariance;
 
-  sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sat_id;
+  sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sid;
 
   add_sats (inout state) sdiff_sats;
 
-  sdiffs :: measurement[state.num_sats];
+  sdiffs :: sdiff_t[state.num_sats];
   sdiffs <- input_sdiffs[:state.num_sats];
   reorder (vec(state.ref) # state.sats) (inout sdiffs);
   sat_positions := (vec i in state.num_sats -> sdiffs[i].sat_pos);
@@ -102,7 +102,7 @@ kalman_update_ {xdim, dim}
 
 update_ {n_sdiffs}
   (inout state :: filter_state)
-  (input_sdiffs :: measurement[n_sdiffs])
+  (input_sdiffs :: sdiff_t[n_sdiffs])
   (receiver_ecef :: double[3])
   -- ? (raim flag)
   :: () := (
@@ -116,7 +116,7 @@ update_ {n_sdiffs}
 
   if state.invalid then kalman_init_ (inout state) input_sdiffs receiver_ecef;
 
-  sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sat_id;
+  sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sid;
 
   -- Update the reference
   if not (contains_sat state.ref sdiff_sats) then (
@@ -126,8 +126,8 @@ update_ {n_sdiffs}
       kalman_init_ (inout state) input_sdiffs receiver_ecef
     ) else (
       printf "new ref: ";
-      print_sat input_sdiffs[index].sat_id; nl ();
-      change_ref (inout state) input_sdiffs[index].sat_id;
+      print_sat input_sdiffs[index].sid; nl ();
+      change_ref (inout state) input_sdiffs[index].sid;
     );
   );
 
@@ -140,12 +140,12 @@ update_ {n_sdiffs}
   -- Assert that sat sets are consistent
   assert state.num_sats == n_sdiffs;
   for i in n_sdiffs -> assert (
-    contains_sat input_sdiffs[i].sat_id state.sats or
-    sid_is_equal input_sdiffs[i].sat_id state.ref
+    contains_sat input_sdiffs[i].sid state.sats or
+    sid_is_equal input_sdiffs[i].sid state.ref
   );
 
   -- We want to reorder and "resize" the sdiffs and sat_positions
-  sdiffs :: measurement[state.num_sats];
+  sdiffs :: sdiff_t[state.num_sats];
   sdiffs <- input_sdiffs[:state.num_sats];
   reorder (vec(state.ref) # state.sats) (inout sdiffs);
   sat_positions := (vec i in state.num_sats -> sdiffs[i].sat_pos);

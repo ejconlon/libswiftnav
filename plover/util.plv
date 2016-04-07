@@ -36,28 +36,6 @@ extern (
   sid_is_equal(a :: gnss_signal_t) (b :: gnss_signal_t) :: bool;
 );
 
-struct measurement (
-  pseudorange :: double;
-  carrier_phase :: double;
-  snr :: double;
-  sat_id :: gnss_signal_t;
-  sat_pos :: double[3];
-);
-
-
-sdiffs_convert {dim}
-  (sdiffs :: sdiff_t[dim])
-  (out ms :: measurement[dim])
-  :: () := (
-  for i in dim -> (
-    ms[i].pseudorange <- sdiffs[i].pseudorange;
-    ms[i].carrier_phase <- sdiffs[i].carrier_phase;
-    ms[i].snr <- sdiffs[i].snr;
-    ms[i].sat_id <- sdiffs[i].sid;
-    ms[i].sat_pos <- sdiffs[i].sat_pos;
-  );
-);
-
 -- MAX_FILTER_STATE_DIM = max(num_sats) + 2
 struct filter_state (
   num_sats :: int; -- must be at least 1!
@@ -71,19 +49,19 @@ struct filter_state (
 -- Reorder sdiffs
 reorder {dim}
   (ordering :: gnss_signal_t[dim])
-  (inout measurements :: measurement[dim])
+  (inout sdiffs :: sdiff_t[dim])
   :: () := (
-  -- sort the measurements according to ordering
+  -- sort the sdiffs according to ordering
   for i in dim -> (
     for j in i:dim -> (
-      if sid_is_equal measurements[j].sat_id ordering[i] then (
-        temp := measurements[i];
-        measurements[i] <- measurements[j];
-        measurements[j] <- temp;
+      if sid_is_equal sdiffs[j].sid ordering[i] then (
+        temp := sdiffs[i];
+        sdiffs[i] <- sdiffs[j];
+        sdiffs[j] <- temp;
       );
     );
   );
-  for i in dim -> assert sid_is_equal measurements[i].sat_id ordering[i];
+  for i in dim -> assert sid_is_equal sdiffs[i].sid ordering[i];
 );
 
 -- TODO base type polymorphism
