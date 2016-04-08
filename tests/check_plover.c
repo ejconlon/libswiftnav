@@ -10,7 +10,7 @@
 
 START_TEST(test_plover)
 {
-  fail_unless(check_plover_main() == 0);
+  check_plover_main();
 }
 END_TEST
 

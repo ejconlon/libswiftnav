@@ -1,7 +1,12 @@
+import util;
+
 -- TODO - Tune these constants
 -- TODO generate const markers
+
 sig_cp :: double := 0.02;
 sig_pr :: double := 3.0;
 sig_x :: double := 0.1;
 sig_z :: double := 10.0;
 sig_init_p :: double := 1.0e3;
+GPS_L2_HZ :: double := 1227.6e6;
+GPS_L2_LAMBDA :: double := 1.0;

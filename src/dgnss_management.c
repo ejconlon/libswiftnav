@@ -23,7 +23,7 @@
 #include <libswiftnav/filter_utils.h>
 #include <libswiftnav/ambiguity_test.h>
 
-#include <libswiftnav/plover/filter.h>
+#include <libswiftnav/plover/check_plover.h>
 #include <libswiftnav/plover/util.h>
 
 
@@ -283,14 +283,14 @@ void dgnss_update(u8 num_sats, sdiff_t *sdiffs, double receiver_ecef[3],
 
 s8 get_baseline(double baseline[3], u8 *num_sats)
 {
-  if (filter_state_.invalid) {
+  if (!filter_state_.l1_valid) {
     return -1;
   }
 
   baseline[0] = filter_state_.x[0];
   baseline[1] = filter_state_.x[1];
   baseline[2] = filter_state_.x[2];
-  *num_sats = filter_state_.num_sats;
+  *num_sats = get_num_sats(filter_state_);
 
   return 0;
 }

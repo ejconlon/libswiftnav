@@ -45,7 +45,7 @@ set (PLOVER_UNITS
   #plover_lib
   #observation_models
   #process_models
-  #constants
+  constants
 )
 
 foreach(unit ${PLOVER_UNITS})

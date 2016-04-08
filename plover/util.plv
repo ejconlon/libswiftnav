@@ -10,6 +10,7 @@ __C__ "#define MAX_FILTER_STATE_DIM 15";
 
 extern (
   GPS_L1_LAMBDA :: double;
+  GPS_C :: double;
 
   -- we don't use the fields; only call functions with gnss_signal_t parameters
   -- TODO make parser accept empty struct definition
@@ -66,11 +67,11 @@ num_l2_sats
   n
 );
 
-num_sats
+get_num_sats
   (s :: filter_state)
   :: s32 := num_l1_sats s + num_l2_sats s;
 
-state_dimension
+get_state_dimension
   (s :: filter_state)
   :: s32 := s.first_amb_idx + s.l1_ambs + s.l2_ambs;
 
@@ -158,6 +159,55 @@ find_sat {dim}
   return -1;
 );
 
+increment_amb_count
+  (inout state :: filter_state)
+  (sat :: gnss_signal_t)
+  :: () := (
+    if sat.code == CODE_GPS_L1CA then (
+      state.l1_ambs <- state.l1_ambs + 1;
+    ) else if sat.code == CODE_GPS_L2CM then (
+      state.l2_ambs <- state.l2_ambs + 1;
+    ) else (
+      print_sat sat;
+      printf "Invalid code.\n";
+      assert False;
+    );
+);
+
+decrement_amb_count
+  (inout state :: filter_state)
+  (sat :: gnss_signal_t)
+  :: () := (
+    if sat.code == CODE_GPS_L1CA then (
+      state.l1_ambs <- state.l1_ambs - 1;
+    ) else if sat.code == CODE_GPS_L2CM then (
+      state.l2_ambs <- state.l2_ambs - 1;
+    ) else (
+      print_sat sat;
+      printf "Invalid code.\n";
+      assert False;
+    );
+);
+
+get_index_bounds
+  (state :: filter_state)
+  (sat :: gnss_signal_t)
+  (out lower :: s32)
+  (out upper :: s32)
+  :: () := (
+    if sat.code == CODE_GPS_L1CA then (
+      lower <- state.first_amb_idx;
+      upper <- lower + state.l1_ambs;
+    ) else if sat.code == CODE_GPS_L2CM then (
+      lower <- state.first_amb_idx + state.l1_ambs;
+      upper <- lower + state.l2_ambs;
+    ) else (
+      print_sat sat;
+      printf "Invalid code.\n";
+      assert False;
+    );
+);
+
 sats_index_to_x_index
   (s :: filter_state)
   (sats_index :: s32)
@@ -185,6 +235,30 @@ add_dimension {dim}
   result;
 );
 
+insert_sat {dim}
+  (array :: gnss_signal_t[dim])
+  (index :: s32)
+  (value :: gnss_signal_t)
+  :: (gnss_signal_t[dim+1]) := (
+  new_array :: gnss_signal_t[dim+1];
+  new_array[0:index] <- array[0:index];
+  new_array[index] <- value;
+  new_array[index+1:]  <- array[index:];
+  return new_array;
+);
+
+insert_double {dim}
+  (array :: double[dim])
+  (index :: s32)
+  (value :: double)
+  :: (double[dim+1]) := (
+  new_array :: double[dim+1];
+  new_array[0:index] <- array[0:index];
+  new_array[index] <- value;
+  new_array[index+1:]  <- array[index:];
+  return new_array;
+);
+
 insert_dimension {dim}
   (m :: double[dim, dim])
   (index :: s32)
@@ -198,6 +272,16 @@ insert_dimension {dim}
   result[index+1:, :index] <- m[index:, :index];
   result[:index, index+1:] <- m[:index, index:];
   result[index+1:, index+1:] <- m[index:, index:];
+);
+
+double_matrix_equal {m, n}
+  (x :: double[m, n])
+  (y :: double[m, n])
+  :: bool := (
+    for i in m ->
+      for j in n ->
+        if not (x[i, j] == y[i, j]) then return False;
+    return True;
 );
 
 -- Print utils
@@ -217,7 +301,7 @@ print_sat_state (s :: filter_state) :: () := (
   printf "(";
   if s.l1_valid then (printf "l1: "; print_sat s.l1_ref; printf ", "; ());
   if s.l2_valid then (printf "l2: "; print_sat s.l2_ref; ());
-  printf ")"
+  printf ")";
   print_sats s.sats; ()
 );
 

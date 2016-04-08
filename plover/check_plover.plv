@@ -1,18 +1,43 @@
 import prelude;
 import util;
 
-check_plover_main () :: s32 := (
-  m := mat(1.0, 2.0; 3, 4);
-  print_mat m;
-  n :: double[3,3];
-  insert_dimension m 0 n;
-  print_mat  n;
-  insert_dimension m 1 n;
-  print_mat  n;
-  insert_dimension m 2 n;
-  print_mat  n;
-  0
+check_plover_main () :: () := (
+  check_insert_dimension ();
+  check_insert_sat ();
 );
+
+check_insert_dimension () :: () := (
+  m := mat(1.0, 2.0; 3, 4);
+
+  n :: double[3,3];
+  insert_dimension m 0 (out n);
+  expected_matrix_1 := mat(0.0, 0.0, 0.0; 0.0, 1.0, 2.0; 0.0, 3.0, 4.0);
+  assert double_matrix_equal n expected_matrix_1;
+
+  insert_dimension m 1 (out n);
+  expected_matrix_2 := mat(1.0, 0.0, 2.0; 0.0, 0.0, 0.0; 3.0, 0.0, 4.0);
+  assert double_matrix_equal n expected_matrix_2;
+
+  insert_dimension m 2 (out n);
+  expected_matrix_3 := mat(1.0, 2.0, 0.0; 3.0, 4.0, 0.0; 0.0, 0.0, 0.0);
+  assert double_matrix_equal n expected_matrix_3;
+);
+
+check_insert_sat () :: () := (
+  n := 5;
+  sat_array :: gnss_signal_t[n];
+  for i in n -> (
+    sat_array[i].sat <- i + 1;
+  );
+  new_sat :: gnss_signal_t;
+  new_sat.sat <- 7;
+  new_sat_array := insert_sat sat_array 4 new_sat;
+  expected_array := sat_array[:4] # vec(new_sat) # sat_array[4:];
+  for i in (n+1) -> (
+    assert sid_is_equal new_sat_array[i] expected_array[i];
+  );
+);
+
 
 -- TODO remove
 update_ {n_sdiffs}
@@ -24,8 +49,6 @@ update_ {n_sdiffs}
 
 make_filter_state () :: filter_state := (
   s :: filter_state;
-  s.invalid <- True;
-  s.num_sats <- 0;
   s;
 );
 
