@@ -24,5 +24,6 @@ Suite* signal_test_suite(void);
 Suite* track_test_suite(void);
 Suite* cnav_test_suite(void);
 Suite* qr_test_suite(void);
+Suite* plover_test_suite(void);
 
 #endif /* CHECK_SUITES_H */

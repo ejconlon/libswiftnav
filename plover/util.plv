@@ -38,12 +38,64 @@ extern (
 
 -- MAX_FILTER_STATE_DIM = max(num_sats) + 2
 struct filter_state (
-  num_sats :: int; -- must be at least 1!
-  ref :: gnss_signal_t;
-  sats :: gnss_signal_t[MAX_FILTER_STATE_DIM] storing gnss_signal_t[num_sats-1];
-  invalid :: bool;
-  x :: double[MAX_FILTER_STATE_DIM] storing double[num_sats+2];
-  P :: double[MAX_FILTER_STATE_DIM, MAX_FILTER_STATE_DIM] storing double[num_sats+2, num_sats+2];
+  first_amb_idx :: s32;
+  l1_valid :: bool;
+  l2_valid :: bool;
+  l1_ambs :: s32;
+  l2_ambs :: s32;
+  l1_ref :: gnss_signal_t;
+  l2_ref :: gnss_signal_t;
+  sats :: gnss_signal_t[MAX_FILTER_STATE_DIM] storing gnss_signal_t[l1_ambs + l2_ambs];
+  x :: double[MAX_FILTER_STATE_DIM] storing double[first_amb_idx + l1_ambs + l2_ambs];
+  P :: double[MAX_FILTER_STATE_DIM, MAX_FILTER_STATE_DIM] storing double[first_amb_idx + l1_ambs + l2_ambs, first_amb_idx + l1_ambs + l2_ambs];
+);
+
+num_l1_sats
+  (s :: filter_state)
+  :: s32 := (
+  n := s.l1_ambs;
+  if s.l1_valid then n <- n + 1;
+  n
+);
+
+num_l2_sats
+  (s :: filter_state)
+  :: s32 := (
+  n := s.l2_ambs;
+  if s.l2_valid then n <- n + 1;
+  n
+);
+
+num_sats
+  (s :: filter_state)
+  :: s32 := num_l1_sats s + num_l2_sats s;
+
+state_dimension
+  (s :: filter_state)
+  :: s32 := s.first_amb_idx + s.l1_ambs + s.l2_ambs;
+
+
+struct sat_array (
+  dim :: s32;
+  array :: gnss_signal_t[MAX_FILTER_STATE_DIM] storing gnss_signal_t[dim];
+);
+
+all_sats
+  (s :: filter_state)
+  (out result :: sat_array)
+  :: () := (
+  len := 0;
+  if s.l1_valid then (
+    result.array[len] <- s.l1_ref;
+    len <- len + 1;
+  );
+  if s.l2_valid then (
+    result.array[len] <- s.l2_ref;
+    len <- len + 1;
+  );
+
+  result.array[len : len + s.l1_ambs + s.l2_ambs] <- s.sats;
+  result.dim <- len + s.l1_ambs + s.l2_ambs;
 );
 
 -- Reorder sdiffs
@@ -107,12 +159,14 @@ find_sat {dim}
 );
 
 sats_index_to_x_index
+  (s :: filter_state)
   (sats_index :: s32)
-  :: s32 := return sats_index + 3;
+  :: s32 := return sats_index + s.first_amb_idx;
 
 num_sats_to_num_states
+  (s :: filter_state)
   (num_sats :: s32)
-  :: s32 := return num_sats + 3 - 1;
+  :: s32 := return num_sats + s.first_amb_idx - 2;
 
 contains_sat {dim}
   (target :: gnss_signal_t)
@@ -131,6 +185,21 @@ add_dimension {dim}
   result;
 );
 
+insert_dimension {dim}
+  (m :: double[dim, dim])
+  (index :: s32)
+  (out result :: double[dim+1, dim+1])
+  :: () := (
+
+  result[index, :] <- 0;
+  result[:, index] <- 0;
+
+  result[:index, :index] <- m[:index, :index];
+  result[index+1:, :index] <- m[index:, :index];
+  result[:index, index+1:] <- m[:index, index:];
+  result[index+1:, index+1:] <- m[index:, index:];
+);
+
 -- Print utils
 nl () :: () := (printf "\n"; ());
 
@@ -145,8 +214,11 @@ print_sats {n} (s :: gnss_signal_t[n]) :: () := (
 );
 
 print_sat_state (s :: filter_state) :: () := (
-  if s.invalid then (printf "state empty\n"; ())
-  else (printf "("; print_sat s.ref; printf ")"; print_sats s.sats;);
+  printf "(";
+  if s.l1_valid then (printf "l1: "; print_sat s.l1_ref; printf ", "; ());
+  if s.l2_valid then (printf "l2: "; print_sat s.l2_ref; ());
+  printf ")"
+  print_sats s.sats; ()
 );
 
 print_mat_upsidedown {n,m} (A :: double[n,m]) :: () := (

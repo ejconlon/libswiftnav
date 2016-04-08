@@ -9,24 +9,68 @@ add_sats {n_sdiffs}
   (inout state :: filter_state)
   (sdiff_sats :: gnss_signal_t[n_sdiffs])
   :: () := (
-  sig_new_amb := (sig_init_p / GPS_L1_LAMBDA)^2;
   for i in n_sdiffs -> (
-    if not (contains_sat sdiff_sats[i] state.sats or sid_is_equal sdiff_sats[i] state.ref) then
-      add_sat (inout state) sdiff_sats[i] sig_new_amb
+    array :: sat_array;
+    all_sats state (out array);
+
+    if not (contains_sat sdiff_sats[i] array.array) then
+      add_sat (inout state) sdiff_sats[i]
+
+    --if not (contains_sat sdiff_sats[i] state.sats or
+    --        (state.l1_valid and sid_is_equal sdiff_sats[i] state.l1_ref) or
+    --        (state.l2_valid and sid_is_equal sdiff_sats[i] state.l2_ref)) then
+    --  add_sat (inout state) sdiff_sats[i]
   );
 );
 
 add_sat
   (inout state :: filter_state)
   (new_sat :: gnss_signal_t)
-  (sig_new_amb :: double)
   :: () := (
+  sig_new_amb :: double;
+  new_sat_idx :: s32;
+
+  if new_sat.code == CODE_GPS_L1CA then (
+    sig_new_amb <- sig_init_p / GPS_L1_LAMBDA;
+    new_sat_idx <- s.l1_ambs;
+  ) else if new_sat.code == CODE_GPS_L2CA then
+    sig_new_amb <- sig_init_p / GPS_L2_LAMBDA;
+    new_sat_idx <- s.l1_ambs + s.l2_ambs;
+  ) else (
+      printf "Invalid sat code found: %d\n" new_sat.code;
+      assert False;
+  );
   printf "ADD: "; print_sat new_sat; print_sat_state state;
+
+  -- x index
+  new_x_index = sats_index_to_x_index new_sat_idx;
+  p_new :: double[s.first_amb_idx + s.l1_ambs + s.l2_ambs, s.first_amb_idx + s.l1_ambs + s.l2_ambs];
+
+  -- TODO here we are:
+
+  -- add to sats
+  insert_array state.sats new_sat_idx new_sat;
+  -- add to x
+  insert_array state.x new_x_index 0.0;
+  -- add to P
+  insert_dimension state.P new_x_index p_new;
+
+  -- increment l1_ambs or l2_ambs
+  -- copy values
+
+
+
+
+
+
   new_num_sats := state.num_sats + 1;
   new_num_x_states := num_sats_to_num_states new_num_sats;
   p_new :: double[new_num_x_states, new_num_x_states];
   -- initial off-diagonal covariance = 0
-  p_new <- (add_dimension state.P)[:new_num_x_states, :new_num_x_states];
+
+  --p_new <- (add_dimension state.P)[:new_num_x_states, :new_num_x_states];
+  insert_dimension P ?? p_new;
+
   state.sats[new_num_sats-2] <- new_sat;
   pdim := 3 + new_num_sats - 1;
   state.x[pdim-1] <- 0.0;
@@ -35,6 +79,8 @@ add_sat
   state.P[:pdim, :pdim] <- p_new[:pdim, :pdim];
   --nl (); printf "\nP:\n"; print_mat state.P; nl ();
 );
+
+{-
 
 -- DROP SAT --
 
@@ -158,3 +204,4 @@ change_ref
   sat_state.x[:num_states] <- new_x;
   sat_state.P[:num_states,:num_states] <- new_p;
 );
+-}

@@ -135,6 +135,7 @@ update_ {n_sdiffs}
   drop_sats (inout state) sdiff_sats;
 
   -- Add any new sats
+  -- TODO choose new ref occasionally?
   add_sats (inout state) sdiff_sats;
 
   -- Assert that sat sets are consistent

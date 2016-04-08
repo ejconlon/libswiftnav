@@ -1,4 +1,5 @@
 -- TODO - Tune these constants
+-- TODO generate const markers
 sig_cp :: double := 0.02;
 sig_pr :: double := 3.0;
 sig_x :: double := 0.1;

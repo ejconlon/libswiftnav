@@ -38,13 +38,14 @@ set (PLOVER_UNITS
   prelude
   qr
   util
-  filter
-  rand
-  plover_lib
+  check_plover
   ambiguities
-  observation_models
-  process_models
-  constants
+  #rand
+  #filter
+  #plover_lib
+  #observation_models
+  #process_models
+  #constants
 )
 
 foreach(unit ${PLOVER_UNITS})

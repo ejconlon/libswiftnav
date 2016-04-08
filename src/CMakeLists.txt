@@ -56,6 +56,7 @@ set(libswiftnav_SRCS
 foreach(unit ${PLOVER_CFILES})
   set_source_files_properties(${unit} PROPERTIES COMPILE_FLAGS -Wno-err)
   set_source_files_properties(${unit} PROPERTIES COMPILE_FLAGS -Wno-unused-variable)
+  set_source_files_properties(${unit} PROPERTIES COMPILE_FLAGS -Wno-unused-parameter)
 endforeach(unit)
 
 add_library(swiftnav-static STATIC ${libswiftnav_SRCS})
