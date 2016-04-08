@@ -1,0 +1,36 @@
+import prelude;
+import util;
+
+check_plover_main () :: s32 := (
+  m := mat(1.0, 2.0; 3, 4);
+  print_mat m;
+  n :: double[3,3];
+  insert_dimension m 0 n;
+  print_mat  n;
+  insert_dimension m 1 n;
+  print_mat  n;
+  insert_dimension m 2 n;
+  print_mat  n;
+  0
+);
+
+-- TODO remove
+update_ {n_sdiffs}
+  (inout state :: filter_state)
+  (input_sdiffs :: sdiff_t[n_sdiffs])
+  (receiver_ecef :: double[3])
+  -- ? (raim flag)
+  :: () := ();
+
+make_filter_state () :: filter_state := (
+  s :: filter_state;
+  s.invalid <- True;
+  s.num_sats <- 0;
+  s;
+);
+
+kalman_init_ {n_sdiffs}
+  (inout state :: filter_state)
+  (input_sdiffs :: sdiff_t[n_sdiffs])
+  (receiver_ecef :: double[3])
+  :: () := ();
