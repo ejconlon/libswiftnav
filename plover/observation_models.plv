@@ -3,11 +3,11 @@ import qr;
 import util;
 import constants;
 
-omega_dot_unit_vector {sats, dim}
-  (base_pos :: double[dim])
-  (sat_positions :: double[sats, dim])
-  (estimate :: double[dim])
-  :: double[sats, dim] := (
+omega_dot_unit_vector {sats}
+  (base_pos :: double[3])
+  (sat_positions :: double[sats, 3])
+  (estimate :: double[3])
+  :: double[sats, 3] := (
 
   vec i in sats -> (
     h := sat_positions[i] - base_pos;
@@ -16,19 +16,25 @@ omega_dot_unit_vector {sats, dim}
   );
 );
 
-orthogonal_observation_model_ {sats}
+orthogonal_observation_model_ {sats, dyn_dim}
   (pseudoranges :: double[sats])
   (carrier_phases :: double[sats])
-  (x :: double[3])
+  (x :: double[dyn_dim])
   (base_pos :: double[3])
   (sat_positions :: double[sats, 3])
+  (wavelength :: double)
   (out y :: double[2*(sats-1)])
-  (out H :: double[2*(sats-1), 3+(sats-1)])
-  (out R :: Scalar double[2*(sats-1), 2*(sats-1)])
+  (out H :: double[2*(sats-1), dyn_dim+(sats-1)])
+  (out R :: double[2*(sats-1), 2*(sats-1)])
   :: () := (
 
-  E :: double[sats, 3];
-  E <- (omega_dot_unit_vector base_pos sat_positions x[0:3]) / GPS_L1_LAMBDA;
+  E :: double[sats, dyn_dim];
+  -- TODO interface call to get position from state
+  E0 :: double[sats, 3] := (omega_dot_unit_vector base_pos sat_positions x[0:3]) / wavelength;
+  -- handle case of model with additional dynamic components
+  E1 :: double[sats, dyn_dim-3];
+  E1 <- 0.0;
+  E <- (E0^T # E1^T)^T;
   u :: double[sats];
   u <- -1.0 / sqrt sats;
   u[0] <- u[0] + 1;
@@ -37,11 +43,11 @@ orthogonal_observation_model_ {sats}
   P_bar <- (scalar 1.0 - 2 * (u * u^T) / (u * u))[1:];
   F :: double[sats-1, sats-1] :=
     scalar 1.0 - (1 / (sats - sqrt sats));
-  sig_ratio := sig_cp / (sig_pr / GPS_L1_LAMBDA);
+  sig_ratio := sig_cp / (sig_pr / wavelength);
 
   -- Outputs
   y <- (P_bar * carrier_phases) #
-         (sig_ratio * P_bar * pseudoranges / GPS_L1_LAMBDA);
+         (sig_ratio * P_bar * pseudoranges / wavelength);
   -- block: [PE, F; sig_ratio*PE, 0]
   PE := P_bar * E;
   H <- ((PE^T # F^T)^T # ((sig_ratio * PE^T) # scalar 0.0)^T);
@@ -85,4 +91,76 @@ direct_observation_model_ {sats}
   D_block := ((D # zeros2)^T # (zeros2 # D)^T)^T;
   R_block := (((sig_cp * R_single) # scalar 0.0)^T # (scalar 0.0 # (sig_cp * R_single))^T)^T;
   R <- D_block * R_block * D_block^T;
+);
+
+-- TODO delete
+kalman_update_ {xdim, dim}
+  (x :: double[xdim])
+  (P :: double[xdim, xdim])
+  (y :: double[dim])
+  (H :: double[dim, xdim])
+  (R :: double[dim, dim])
+  (out x_new :: double[xdim])
+  (out P_new :: double[xdim, xdim])
+  :: () := (
+
+  innovation := y - H * x;
+
+  PHt := P * H^T;
+  S := H * PHt + R;
+  K := PHt * S^(-1) :: double[xdim, dim];
+
+  x_new <- x + K * innovation;
+  P_new <- (scalar 1.0 - K * H) * P;
+);
+
+l1_l2_observation_model
+  { l1_sdiff_dim, l2_sdiff_dim }
+  (inout state :: filter_state)
+  (base_pos_ecef :: double[3])
+  (l1_sdiffs :: sdiff_t[l1_sdiff_dim])
+  (l2_sdiffs :: sdiff_t[l2_sdiff_dim])
+  (l1_sat_positions :: double[state.l1_ambs+1, 3])
+  (l2_sat_positions :: double[state.l2_ambs+1, 3])
+
+  :: () := (
+
+  y1 :: double[2*state.l1_ambs];
+  H1 :: double[2*state.l1_ambs, state.first_amb_idx+state.l1_ambs];
+  R1 :: double[2*state.l1_ambs, 2*state.l1_ambs];
+
+  y2 :: double[2*state.l2_ambs];
+  H2 :: double[2*state.l2_ambs, state.first_amb_idx+state.l2_ambs];
+  R2 :: double[2*state.l2_ambs, 2*state.l2_ambs];
+
+  if state.l1_valid then (
+    orthogonal_observation_model_
+    (vec i in : -> l1_sdiffs[i].pseudorange)
+    (vec i in : -> l1_sdiffs[i].carrier_phase)
+    state.x[0:state.first_amb_idx] base_pos_ecef l1_sat_positions GPS_L1_LAMBDA
+    (out y1) (out H1) (out R1)
+  );
+
+  if state.l2_valid then (
+    orthogonal_observation_model_
+    (vec i in : -> l2_sdiffs[i].pseudorange)
+    (vec i in : -> l2_sdiffs[i].carrier_phase)
+    state.x[0:state.first_amb_idx] base_pos_ecef l2_sat_positions GPS_L2_LAMBDA
+    (out y2) (out H2) (out R2)
+  );
+
+  -- Form annoying composite H matrix
+  -- TODO abstract this better
+  H :: double[2*(state.l1_ambs+state.l2_ambs), state.first_amb_idx + state.l1_ambs + state.l2_ambs];
+  H[:2*state.l1_ambs, :state.first_amb_idx] <- H1[:, :state.first_amb_idx];
+  H[2*state.l1_ambs:, :state.first_amb_idx] <- H2[:, :state.first_amb_idx];
+  H[:2*state.l1_ambs, state.first_amb_idx:state.first_amb_idx+state.l1_ambs] <-
+    H1[:, state.first_amb_idx:];
+  H[2*state.l1_ambs:, state.first_amb_idx+state.l1_ambs:] <- H2[:, state.first_amb_idx:];
+
+  -- Use : to force a copy of state.x, state.P
+  -- Writes output directly into state.x, state.P
+  kalman_update_ state.x[:] state.P[:,:]
+    (y1 # y2) H (block_diagonal R1 R2)
+    (out state.x) (out state.P)
 );

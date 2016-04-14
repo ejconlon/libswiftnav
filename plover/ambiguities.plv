@@ -2,16 +2,15 @@ import prelude;
 import qr;
 import util;
 import constants;
+import observation_models;
 
 -- ADD SAT --
 add_sats {n_sdiffs}
   (inout state :: filter_state)
   (sdiff_sats :: gnss_signal_t[n_sdiffs])
   :: () := (
+  array :: sat_array := all_sats state;
   for i in n_sdiffs -> (
-    array :: sat_array;
-    all_sats state (out array);
-
     if not (contains_sat sdiff_sats[i] array.array) then
       add_sat (inout state) sdiff_sats[i]
   );
@@ -147,7 +146,6 @@ change_ref
   (inout state :: filter_state)
   (sat :: gnss_signal_t)
   :: () := (
-
   -- have:
   -- xi = z_i - z_0
   -- xj = z_j - z_0

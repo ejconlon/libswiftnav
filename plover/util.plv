@@ -83,8 +83,8 @@ struct sat_array (
 
 all_sats
   (s :: filter_state)
-  (out result :: sat_array)
-  :: () := (
+  :: sat_array := (
+  result :: sat_array;
   len := 0;
   if s.l1_valid then (
     result.array[len] <- s.l1_ref;
@@ -97,6 +97,7 @@ all_sats
 
   result.array[len : len + s.l1_ambs + s.l2_ambs] <- s.sats;
   result.dim <- len + s.l1_ambs + s.l2_ambs;
+  result
 );
 
 -- Reorder sdiffs
@@ -282,6 +283,17 @@ double_matrix_equal {m, n}
       for j in n ->
         if not (x[i, j] == y[i, j]) then return False;
     return True;
+);
+
+block_diagonal {r1, c1, r2, c2}
+  (mat1 :: double[r1, c1])
+  (mat2 :: double[r2, c2])
+  :: double[r1 + r2, c1 + c2] := (
+  result :: double[r1 + r2, c1 + c2];
+  result <- 0;
+  result[:r1, :c1] <- mat1;
+  result[r1:, c1:] <- mat2;
+  return result;
 );
 
 -- Print utils
