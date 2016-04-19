@@ -8,64 +8,85 @@ import process_models;
 
 make_filter_state () :: filter_state := (
   s :: filter_state;
-  s.invalid <- True;
-  s.num_sats <- 0;
+  reset_band (out s.l1_ambs) (out s.l1_valid);
+  reset_band (out s.l2_ambs) (out s.l2_valid);
+  -- Initial baseline state and covariance
+  s.x <- 0.0;
+  s.P <- scalar (sig_init_p^2);
   s;
 );
 
-iterative_least_squares {n_sdiffs}
+reset_band
+  (out num_ambs :: s32)
+  (out validity_flag :: bool)
+  :: () := (
+  num_ambs <- 0;
+  validity_flag <- False;
+);
+
+init_band {n_sdiffs}
+  -- State object; needed by add_sats and the lesq initialization.
   (inout state :: filter_state)
+  -- Views on filter state
+  (out validity_flag :: bool)
+  (out num_ambs :: s32)
+  (out ref :: gnss_signal_t)
+  (out sats :: gnss_signal_t[num_ambs])
+  (out amb_estimates :: double [num_ambs])
+  -- Initial data
+  (input_sdiffs :: sdiff_t[n_sdiffs])
+  (receiver_ecef :: double[3])
+  (wavelength :: double)
+  :: () := (
+  ref_sat := input_sdiffs[choose_fresh_ref input_sdiffs].sid;
+  change_ref (inout state) ref_sat;
+  printf "Reset Filter! new reference: "; print_sat ref_sat; nl ();
+  num_ambs <- 1;
+  validity_flag <- True;
+
+  add_sats (inout state) (vec i in n_sdiffs -> input_sdiffs[i].sid);
+
+  sdiffs :: sdiff_t[num_ambs + 1];
+  sdiffs <- input_sdiffs[:num_ambs + 1];
+  reorder (vec(ref) # sats) (inout sdiffs);
+  sat_positions := (vec i in num_ambs+1 -> sdiffs[i].sat_pos);
+
+  iterative_least_squares sdiffs receiver_ecef sat_positions wavelength
+    (inout state.x[:3]) (inout amb_estimates);
+);
+
+-- TODO fix `(a # b) <- c;` issue
+modify {n} (out left :: double[n]) (right :: double[n]) :: () := left <- right;
+
+-- TODO: add state.x[ambs] and state.x[baseline] to params instead of state
+iterative_least_squares {n_sdiffs}
   (sdiffs :: sdiff_t[n_sdiffs])
   (receiver_ecef :: double[3])
   (sat_positions :: double[n_sdiffs, 3])
+  (wavelength :: double)
+  -- View on filter state
+  (inout baseline :: double[3])
+  (inout amb_estimates :: double[n_sdiffs-1])
   :: () := (
 
   y :: double[2*(n_sdiffs-1)];
   H :: double[2*(n_sdiffs-1), n_sdiffs+2];
-  R :: Scalar double[2*(n_sdiffs-1), 2*(n_sdiffs-1)];
+  R :: double[2*(n_sdiffs-1), 2*(n_sdiffs-1)];
 
   max_iterations := 5;
   for j in max_iterations -> (
     -- TODO: Add decorrelation and regularization?
     orthogonal_observation_model_
-    (vec i in : -> sdiffs[i].pseudorange)
-    (vec i in : -> sdiffs[i].carrier_phase)
-    state.x[0:3] receiver_ecef sat_positions (out y) (out H) (out R);
-    y_hat := y - H * state.x[:n_sdiffs+2];
+      (vec i in : -> sdiffs[i].pseudorange)
+      (vec i in : -> sdiffs[i].carrier_phase)
+      baseline[0:3] receiver_ecef sat_positions wavelength
+      (out y) (out H[:,:3]) (out H[:,:n_sdiffs-1]) (out R);
+    y_hat := y - H * (baseline # amb_estimates);
     delta_x_hat :: double[n_sdiffs+2];
     residual :: double;
     qr_solve (inout H^T * H) (inout H^T * y_hat) (out delta_x_hat) (out residual);
-    state.x[:n_sdiffs+2] <- state.x[:n_sdiffs+2] + delta_x_hat;
+    modify (out baseline # amb_estimates) ((baseline # amb_estimates) + delta_x_hat);
   );
-);
-
-kalman_init_ {n_sdiffs}
-  (inout state :: filter_state)
-  (input_sdiffs :: sdiff_t[n_sdiffs])
-  (receiver_ecef :: double[3])
-  :: () := (
-  index := choose_ref state input_sdiffs True;
-  ref_sat := input_sdiffs[index].sid;
-  change_ref (inout state) ref_sat;
-  printf "Reset Filter! new reference: "; print_sat ref_sat; nl ();
-  state.num_sats <- 1;
-  state.ref <- ref_sat;
-  state.invalid <- False;
-  state.x <- 0.0;
-  position_covariance :: double[state.num_sats + 2, state.num_sats + 2];
-  position_covariance[:3, :3] <- scalar (sig_init_p^2);
-  state.P <- position_covariance;
-
-  sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sid;
-
-  add_sats (inout state) sdiff_sats;
-
-  sdiffs :: sdiff_t[state.num_sats];
-  sdiffs <- input_sdiffs[:state.num_sats];
-  reorder (vec(state.ref) # state.sats) (inout sdiffs);
-  sat_positions := (vec i in state.num_sats -> sdiffs[i].sat_pos);
-
-  iterative_least_squares (inout state) sdiffs receiver_ecef sat_positions;
 );
 
 kalman_predict_ {dim}
@@ -85,7 +106,7 @@ kalman_update_ {xdim, dim}
   (P :: double[xdim, xdim])
   (y :: double[dim])
   (H :: double[dim, xdim])
-  (R :: Scalar double[dim, dim])
+  (R :: double[dim, dim])
   (out x_new :: double[xdim])
   (out P_new :: double[xdim, xdim])
   :: () := (
@@ -100,30 +121,100 @@ kalman_update_ {xdim, dim}
   P_new <- (scalar 1.0 - K * H) * P;
 );
 
-update_ {n_sdiffs}
+l1_l2_observation_model_update
+  { l1_sdiff_dim, l2_sdiff_dim }
   (inout state :: filter_state)
+  (base_pos_ecef :: double[3])
+  (l1_sdiffs :: sdiff_t[l1_sdiff_dim])
+  (l2_sdiffs :: sdiff_t[l2_sdiff_dim])
+  :: () := (
+
+  y1 :: double[2*state.l1_ambs];
+  H1_base :: double[2*state.l1_ambs, state.first_amb_idx];
+  H1_ambs :: double[2*state.l1_ambs, state.l1_ambs];
+  R1 :: double[2*state.l1_ambs, 2*state.l1_ambs];
+
+  y2 :: double[2*state.l2_ambs];
+  H2_base :: double[2*state.l2_ambs, state.first_amb_idx];
+  H2_ambs :: double[2*state.l2_ambs, state.l2_ambs];
+  R2 :: double[2*state.l2_ambs, 2*state.l2_ambs];
+
+  if state.l1_valid then (
+    l1_sat_positions  := vec i in :state.l1_ambs+1 -> l1_sdiffs[i].sat_pos;
+    l1_pseudoranges   := vec i in :state.l1_ambs+1 -> l1_sdiffs[i].pseudorange;
+    l1_carrier_phases := vec i in :state.l1_ambs+1 -> l1_sdiffs[i].carrier_phase;
+    orthogonal_observation_model_
+      l1_pseudoranges
+      l1_carrier_phases
+      state.x[0:3] base_pos_ecef l1_sat_positions GPS_L1_LAMBDA
+      (out y1) (out H1_base) (out H1_ambs) (out R1)
+  );
+
+  if state.l2_valid then (
+    l2_sat_positions := vec i in :state.l2_ambs+1 -> l2_sdiffs[i].sat_pos;
+    l2_pseudoranges   := vec i in :state.l2_ambs+1 -> l2_sdiffs[i].pseudorange;
+    l2_carrier_phases := vec i in :state.l2_ambs+1 -> l2_sdiffs[i].carrier_phase;
+    orthogonal_observation_model_
+      l2_pseudoranges
+      l2_carrier_phases
+      state.x[0:3] base_pos_ecef l2_sat_positions GPS_L2_LAMBDA
+      (out y2) (out H2_base) (out H2_ambs) (out R2)
+  );
+
+  -- NOTE: if band i is invalid, then yi, Ri, and Hi_{base,ambs} will all have zero rows
+
+  -- Form composite H matrix
+  -- TODO horizontal concat operator
+  H :: double[2*(state.l1_ambs+state.l2_ambs),
+              state.first_amb_idx + state.l1_ambs + state.l2_ambs];
+  H <- ((H1_base # H2_base)^T #
+          (block_diagonal H1_ambs H2_ambs)^T)^T;
+
+  -- Use : to force a copy of state.x, state.P
+  -- Writes output directly into state.x, state.P
+  kalman_update_ state.x[:] state.P[:,:]
+    (y1 # y2) H (block_diagonal R1 R2)
+    (out state.x) (out state.P)
+);
+
+update_sats {n_sdiffs}
+  (inout state :: filter_state)
+  -- Immutable view on state
+  (inout validity_flag :: bool)
+  (inout ref :: gnss_signal_t)
+  (out num_ambs :: s32)
+  (out sats :: gnss_signal_t[num_ambs])
+  (out amb_estimates :: double [num_ambs])
+  -- Input
   (input_sdiffs :: sdiff_t[n_sdiffs])
+  (wavelength :: double)
   (receiver_ecef :: double[3])
-  -- ? (raim flag)
   :: () := (
 
   -- Filter reset
   if n_sdiffs == 0 then (
-    printf "empty filter\n";
-    state <- make_filter_state ();
+    printf "empty filter band\n";
+    reset_band (out num_ambs) (out validity_flag);
     return;
   );
 
-  if state.invalid then kalman_init_ (inout state) input_sdiffs receiver_ecef;
+  if not validity_flag then
+    init_band (inout state)
+      (out validity_flag) (out num_ambs)
+      (out ref) (out sats) (out amb_estimates)
+      input_sdiffs receiver_ecef wavelength;
 
   sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sid;
 
   -- Update the reference
-  if not (contains_sat state.ref sdiff_sats) then (
-    index := choose_ref state input_sdiffs False;
+  if not (contains_sat ref sdiff_sats) then (
+    index := choose_ref state input_sdiffs;
     if index < 0 then (
       printf "No reference found! Resetting";
-      kalman_init_ (inout state) input_sdiffs receiver_ecef
+      init_band (inout state)
+        (out validity_flag) (out num_ambs)
+        (out ref) (out sats) (out amb_estimates)
+        input_sdiffs receiver_ecef wavelength;
     ) else (
       printf "new ref: ";
       print_sat input_sdiffs[index].sid; nl ();
@@ -138,41 +229,73 @@ update_ {n_sdiffs}
   -- TODO choose new ref occasionally?
   add_sats (inout state) sdiff_sats;
 
-  -- Assert that sat sets are consistent
-  assert state.num_sats == n_sdiffs;
-  for i in n_sdiffs -> assert (
-    contains_sat input_sdiffs[i].sid state.sats or
-    sid_is_equal input_sdiffs[i].sid state.ref
-  );
+);
+
+update_filter
+  (inout state :: filter_state)
+  (input_l1_sdiffs :: sdiff_t[state.l1_ambs+1])
+  (input_l2_sdiffs :: sdiff_t[state.l2_ambs+1])
+  (base_receiver_ecef :: double[3])
+  :: () := (
 
   -- We want to reorder and "resize" the sdiffs and sat_positions
-  sdiffs :: sdiff_t[state.num_sats];
-  sdiffs <- input_sdiffs[:state.num_sats];
-  reorder (vec(state.ref) # state.sats) (inout sdiffs);
-  sat_positions := (vec i in state.num_sats -> sdiffs[i].sat_pos);
+  l1_sdiffs := input_l1_sdiffs;
+  l2_sdiffs := input_l2_sdiffs;
+  reorder (vec(state.l1_ref) # state.sats[:state.l1_ambs]) (inout l1_sdiffs);
+  reorder (vec(state.l2_ref) # state.sats[:state.l2_ambs]) (inout l2_sdiffs);
 
   -- Process model
-  F :: Scalar double[state.num_sats+2, state.num_sats+2];
-  Q :: Diagonal double[state.num_sats+2, state.num_sats+2];
+  F :: Scalar double[state.first_amb_idx + state.l1_ambs + state.l2_ambs,
+                       state.first_amb_idx + state.l1_ambs + state.l2_ambs];
+  Q :: Diagonal double[state.first_amb_idx + state.l1_ambs + state.l2_ambs,
+                       state.first_amb_idx + state.l1_ambs + state.l2_ambs];
   process_model (out F) (out Q);
 
-  x_new_1 :: double[state.num_sats+2];
-  P_new_1 :: double[state.num_sats+2, state.num_sats+2];
-  kalman_predict_ state.x state.P
-    F Q (out x_new_1) (out P_new_1);
+  kalman_predict_ state.x[:] state.P[:]
+    F Q (out state.x) (out state.P);
 
-  -- Measurement update
-  y :: double[2*(state.num_sats-1)];
-  H :: double[2*(state.num_sats-1), state.num_sats+2];
-  R :: Scalar double[2*(state.num_sats-1), 2*(state.num_sats-1)];
+  -- Calculate observation model and call kalman_update
+  l1_l2_observation_model_update
+    (inout state) base_receiver_ecef
+    l1_sdiffs l2_sdiffs
+);
 
-  orthogonal_observation_model_
-    (vec i in : -> sdiffs[i].pseudorange)
-    (vec i in : -> sdiffs[i].carrier_phase)
-    x_new_1[0:3] receiver_ecef sat_positions
-    (out y) (out H) (out R);
+update_
+  { l1_sdiff_dim, l2_sdiff_dim }
+  (inout state :: filter_state)
+  (l1_sdiffs :: sdiff_t[l1_sdiff_dim])
+  (l2_sdiffs :: sdiff_t[l2_sdiff_dim])
+  (receiver_ecef :: double[3])
+  -- ? (raim flag)
+  :: () := (
+  -- Sat management
+  update_sats (inout state)
+    (inout state.l1_valid) (inout state.l1_ref) (out state.l1_ambs)
+    (out state.sats[:state.l1_ambs])
+    (out state.x[state.first_amb_idx:state.first_amb_idx+state.l1_ambs])
+    l1_sdiffs GPS_L1_LAMBDA receiver_ecef;
+  update_sats (inout state)
+    (inout state.l2_valid) (inout state.l2_ref) (out state.l2_ambs)
+    (out state.sats[state.l1_ambs:])
+    (out state.x[state.first_amb_idx+state.l1_ambs:])
+    l2_sdiffs GPS_L2_LAMBDA receiver_ecef;
 
-  -- Save a temporary by storing directly into state struct
-  kalman_update_ x_new_1 P_new_1 y H R
-    (out state.x) (out state.P);
+  -- Assert that sat sets are consistent
+  assert state.l1_ambs + 1 == l1_sdiff_dim;
+  assert state.l2_ambs + 1 == l2_sdiff_dim;
+
+  for i in l1_sdiff_dim -> assert (
+    contains_sat l1_sdiffs[i].sid state.sats or
+    sid_is_equal l1_sdiffs[i].sid state.l1_ref
+  );
+  for i in l1_sdiff_dim -> assert (
+    contains_sat l2_sdiffs[i].sid state.sats or
+    sid_is_equal l2_sdiffs[i].sid state.l2_ref
+  );
+
+  -- Filter
+  update_filter (inout state)
+    l1_sdiffs[:state.l1_ambs+1]
+    l2_sdiffs[:state.l2_ambs+1]
+    receiver_ecef;
 );

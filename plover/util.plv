@@ -285,6 +285,13 @@ double_matrix_equal {m, n}
     return True;
 );
 
+zeros {m,n}
+  :: double[m,n] := (
+  r :: double[m,n];
+  r <- 0.0;
+  r;
+);
+
 block_diagonal {r1, c1, r2, c2}
   (mat1 :: double[r1, c1])
   (mat2 :: double[r2, c2])

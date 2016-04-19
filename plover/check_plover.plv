@@ -37,23 +37,3 @@ check_insert_sat () :: () := (
     assert sid_is_equal new_sat_array[i] expected_array[i];
   );
 );
-
-
--- TODO remove
-update_ {n_sdiffs}
-  (inout state :: filter_state)
-  (input_sdiffs :: sdiff_t[n_sdiffs])
-  (receiver_ecef :: double[3])
-  -- ? (raim flag)
-  :: () := ();
-
-make_filter_state () :: filter_state := (
-  s :: filter_state;
-  s;
-);
-
-kalman_init_ {n_sdiffs}
-  (inout state :: filter_state)
-  (input_sdiffs :: sdiff_t[n_sdiffs])
-  (receiver_ecef :: double[3])
-  :: () := ();

@@ -44,8 +44,8 @@ set (PLOVER_UNITS
   rand
   process_models
   observation_models
-  #filter
-  #plover_lib
+  filter
+  plover_lib
 )
 
 foreach(unit ${PLOVER_UNITS})

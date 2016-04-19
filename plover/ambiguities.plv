@@ -120,7 +120,8 @@ drop_sats {n}
 
 -- CHOOSE REF --
 
-choose_ref {dim}
+-- Works for any band
+choose_ref_ {dim}
   (state :: filter_state)
   (sdiffs :: sdiff_t[dim])
   (ignore_current_sats :: bool)
@@ -138,6 +139,18 @@ choose_ref {dim}
 
   return index;
 );
+
+choose_fresh_ref {dim}
+  (sdiffs :: sdiff_t[dim])
+  :: s32 := (
+  dummy :: filter_state;
+  choose_ref_ dummy sdiffs True;
+);
+
+choose_ref {dim}
+  (state :: filter_state)
+  (sdiffs :: sdiff_t[dim])
+  :: s32 := choose_ref_ state sdiffs False;
 
 -- CHANGE REF --
 
