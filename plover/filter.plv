@@ -8,6 +8,7 @@ import process_models;
 
 make_filter_state () :: filter_state := (
   s :: filter_state;
+  -- Reset sat management
   reset_band (out s.l1_ambs) (out s.l1_valid);
   reset_band (out s.l2_ambs) (out s.l2_valid);
   -- Initial baseline state and covariance
@@ -55,10 +56,9 @@ init_band {n_sdiffs}
     (inout state.x[:3]) (inout amb_estimates);
 );
 
--- TODO fix `(a # b) <- c;` issue
+-- TODO fix `a # b <- c;`
 modify {n} (out left :: double[n]) (right :: double[n]) :: () := left <- right;
 
--- TODO: add state.x[ambs] and state.x[baseline] to params instead of state
 iterative_least_squares {n_sdiffs}
   (sdiffs :: sdiff_t[n_sdiffs])
   (receiver_ecef :: double[3])
@@ -161,7 +161,7 @@ l1_l2_observation_model_update
       (out y2) (out H2_base) (out H2_ambs) (out R2)
   );
 
-  -- NOTE: if band i is invalid, then yi, Ri, and Hi_{base,ambs} will all have zero rows
+  -- nb: if band i is invalid, then yi, Ri, and Hi_{base,ambs} will all have zero rows
 
   -- Form composite H matrix
   -- TODO horizontal concat operator
@@ -269,6 +269,7 @@ update_
   -- ? (raim flag)
   :: () := (
   -- Sat management
+  -- TODO: separate state components for l1 and l2
   update_sats (inout state)
     (inout state.l1_valid) (inout state.l1_ref) (out state.l1_ambs)
     (out state.sats[:state.l1_ambs])

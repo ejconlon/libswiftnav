@@ -39,13 +39,13 @@ set (PLOVER_UNITS
   qr
   util
   constants
-  check_plover
   ambiguities
   rand
   process_models
   observation_models
   filter
   plover_lib
+  check_plover
 )
 
 foreach(unit ${PLOVER_UNITS})

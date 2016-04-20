@@ -1,9 +1,12 @@
 import prelude;
 import util;
+import rand;
+import filter;
 
 check_plover_main () :: () := (
   check_insert_dimension ();
   check_insert_sat ();
+  test_add_drop 10 10000;
 );
 
 check_insert_dimension () :: () := (
@@ -36,4 +39,89 @@ check_insert_sat () :: () := (
   for i in (n+1) -> (
     assert sid_is_equal new_sat_array[i] expected_array[i];
   );
+);
+
+sample_sid {m}
+  (sids :: gnss_signal_t[m])
+  (out res :: gnss_signal_t[m])
+  :: s32 := (
+  indices :: s32[m];
+  -- Choose sampling strategy here:
+  --count := sample_k m (out indices);
+  count := sample_uniform m (out indices);
+  res[:count] <- sids[indices[:count]];
+  count
+);
+
+make_measurement
+  (s :: gnss_signal_t)
+  :: sdiff_t := (
+  m :: sdiff_t;
+  m.pseudorange <- rand_normal ();
+  m.carrier_phase <- rand_normal ();
+  m.snr <- rand_normal () + 1;
+  m.sid <- s;
+  m.sat_pos <- 10000+5 * rand_n3 ();
+  m
+);
+
+make_sat_sequence {num_sats}
+  :: gnss_signal_t[num_sats] := (
+  vec i in num_sats -> (
+    s :: gnss_signal_t;
+    s.sat <- i;
+    s.code <- CODE_GPS_L1CA;
+    s
+  );
+);
+
+vec_not_nan {dim} (x :: double[dim]) :: bool := (
+  for i in dim -> if (isnan x[i] or fabs x[i] > 1e22) then return False;
+  return True;
+);
+
+rand_n3 () :: double[3] := vec i in 3 -> i+rand_normal ();
+
+test_add_drop
+  (num_sats :: u32)
+  (iterations :: u32) :: () := (
+  state := make_filter_state ();
+  sats := make_sat_sequence {num_sats};
+
+  position := vec(0.0, 0, 0); -- TODO
+
+  for iter in iterations -> (
+    res :: gnss_signal_t[num_sats];
+    count := sample_sid sats (out res);
+    subset :: gnss_signal_t[count] := res[:count];
+    printf "measurement sats: "; print_sats subset;
+    measurements := vec i in count -> make_measurement subset[i];
+
+    -- update
+
+    printf "%d %d\n" state.l1_ambs state.l1_valid;
+    update_sats (inout state)
+      (inout state.l1_valid) (inout state.l1_ref) (out state.l1_ambs)
+      (out state.sats[:state.l1_ambs])
+      (out state.x[state.first_amb_idx:state.first_amb_idx+state.l1_ambs])
+      measurements GPS_L1_LAMBDA position;
+    --nl (); print_sat_state state;
+
+    --printf "\nstate:\n"; print_vec state.x; nl ();
+    --print_mat state.P; nl ();
+
+    print_vec state.x;
+    assert vec_not_nan state.x;
+  );
+  ()
+);
+
+sigtest (inout x :: gnss_signal_t) :: () := (
+  x.sat <- 22;
+  x.code <- 2;
+);
+
+main () :: int := (
+  test_add_drop 6 28888;
+  0
 );
