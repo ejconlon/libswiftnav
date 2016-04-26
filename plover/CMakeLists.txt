@@ -40,12 +40,12 @@ set (PLOVER_UNITS
   util
   constants
   ambiguities
-  rand
-  process_models
-  observation_models
-  filter
-  plover_lib
-  check_plover
+  #rand
+  #process_models
+  #observation_models
+  #filter
+  #plover_lib
+  #check_plover
 )
 
 foreach(unit ${PLOVER_UNITS})

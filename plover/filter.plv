@@ -8,6 +8,7 @@ import process_models;
 
 make_filter_state () :: filter_state := (
   s :: filter_state;
+  s.first_amb_idx <- 3;
   -- Reset sat management
   reset_band (out s.l1_ambs) (out s.l1_valid);
   reset_band (out s.l2_ambs) (out s.l2_valid);
@@ -175,60 +176,6 @@ l1_l2_observation_model_update
   kalman_update_ state.x[:] state.P[:,:]
     (y1 # y2) H (block_diagonal R1 R2)
     (out state.x) (out state.P)
-);
-
-update_sats {n_sdiffs}
-  (inout state :: filter_state)
-  -- Immutable view on state
-  (inout validity_flag :: bool)
-  (inout ref :: gnss_signal_t)
-  (out num_ambs :: s32)
-  (out sats :: gnss_signal_t[num_ambs])
-  (out amb_estimates :: double [num_ambs])
-  -- Input
-  (input_sdiffs :: sdiff_t[n_sdiffs])
-  (wavelength :: double)
-  (receiver_ecef :: double[3])
-  :: () := (
-
-  -- Filter reset
-  if n_sdiffs == 0 then (
-    printf "empty filter band\n";
-    reset_band (out num_ambs) (out validity_flag);
-    return;
-  );
-
-  if not validity_flag then
-    init_band (inout state)
-      (out validity_flag) (out num_ambs)
-      (out ref) (out sats) (out amb_estimates)
-      input_sdiffs receiver_ecef wavelength;
-
-  sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sid;
-
-  -- Update the reference
-  if not (contains_sat ref sdiff_sats) then (
-    index := choose_ref state input_sdiffs;
-    if index < 0 then (
-      printf "No reference found! Resetting";
-      init_band (inout state)
-        (out validity_flag) (out num_ambs)
-        (out ref) (out sats) (out amb_estimates)
-        input_sdiffs receiver_ecef wavelength;
-    ) else (
-      printf "new ref: ";
-      print_sat input_sdiffs[index].sid; nl ();
-      change_ref (inout state) input_sdiffs[index].sid;
-    );
-  );
-
-  -- Drop any missing sats
-  drop_sats (inout state) sdiff_sats;
-
-  -- Add any new sats
-  -- TODO choose new ref occasionally?
-  add_sats (inout state) sdiff_sats;
-
 );
 
 update_filter

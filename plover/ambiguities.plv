@@ -4,17 +4,71 @@ import util;
 import constants;
 import observation_models;
 
--- ADD SAT --
-add_sats {n_sdiffs}
-  (inout state :: filter_state)
-  (sdiff_sats :: gnss_signal_t[n_sdiffs])
-  :: () := (
-  array :: sat_array := all_sats state;
-  for i in n_sdiffs -> (
-    if not (contains_sat sdiff_sats[i] array.array) then
-      add_sat (inout state) sdiff_sats[i]
+amb_add_sat
+  (state :: amb_state)
+  (new_sat :: gnss_signal_t)
+  :: amb_state := (
+  result :: amb_state;
+  result <- state;
+  new_dim := result.ambs + 1;
+  result.ambs <- new_dim;
+  result.sats[new_dim-1] <- new_sat;
+  result.x[new_dim-1] <- 0.0;
+  result
+);
+
+sig_new_amb (new_sat :: gnss_signal_t) :: double := (
+  if new_sat.code == CODE_GPS_L1CA then (
+    sig_init_p / GPS_L1_LAMBDA;
+  ) else if new_sat.code == CODE_GPS_L2CM then (
+    sig_init_p / GPS_L2_LAMBDA;
+  ) else (
+    printf "Invalid sat code found: %d\n" new_sat.code;
+    assert False;
+    0
   );
 );
+
+filter_add_sat
+  (inout state :: filter_state)
+  (new_sat :: gnss_signal_t)
+  :: () := (
+  printf "ADD: "; print_sat new_sat; print_sat_state state;
+
+  sig_new := sig_new_amb new_sat;
+  new_sat_idx :: s32;
+
+  if new_sat.code == CODE_GPS_L1CA then (
+    new_sat_idx <- state.l1_ambs;
+  ) else if new_sat.code == CODE_GPS_L2CM then (
+    new_sat_idx <- state.l1_ambs + state.l2_ambs;
+  ) else (
+    printf "Invalid sat code found: %d\n" new_sat.code;
+    assert False;
+  );
+
+  -- Add to P
+  new_x_index := sats_index_to_x_index state new_sat_idx;
+  p_new :: double[state.first_amb_idx + state.l1_ambs + state.l2_ambs + 1,
+                  state.first_amb_idx + state.l1_ambs + state.l2_ambs + 1];
+
+  insert_dimension state.P new_x_index (out p_new);
+
+  -- Update sat struct
+  if new_sat.code == CODE_GPS_L1CA then (
+    state.l1_state <- amb_add_sat (state.l1_state) new_sat;
+  ) else if new_sat.code == CODE_GPS_L2CM then (
+    state.l2_state <- amb_add_sat (state.l2_state) new_sat;
+  ) else (
+    printf "Invalid sat code found: %d\n" new_sat.code;
+    assert False;
+  );
+  new_x_dim := get_state_dimension state;
+  -- copy P
+  state.P[:new_x_dim, :new_x_dim] <- p_new[:new_x_dim, :new_x_dim];
+);
+
+{-
 
 add_sat
   (inout state :: filter_state)
@@ -30,8 +84,8 @@ add_sat
     sig_new_amb <- sig_init_p / GPS_L2_LAMBDA;
     new_sat_idx <- state.l1_ambs + state.l2_ambs;
   ) else (
-      printf "Invalid sat code found: %d\n" new_sat.code;
-      assert False;
+    printf "Invalid sat code found: %d\n" new_sat.code;
+    assert False;
   );
   printf "ADD: "; print_sat new_sat; print_sat_state state;
 
@@ -203,3 +257,58 @@ change_ref
   state.x[:num_states] <- new_x;
   state.P[:num_states,:num_states] <- new_p;
 );
+
+update_sats {n_sdiffs}
+  (inout state :: filter_state)
+  -- View on state
+  (inout validity_flag :: bool)
+  (inout ref :: gnss_signal_t)
+  (out num_ambs :: s32)
+  (out sats :: gnss_signal_t[num_ambs])
+  (out amb_estimates :: double [num_ambs])
+  -- Input
+  (input_sdiffs :: sdiff_t[n_sdiffs])
+  (wavelength :: double)
+  (receiver_ecef :: double[3])
+  :: () := (
+
+  -- Filter reset
+  if n_sdiffs == 0 then (
+    printf "empty filter band\n";
+    reset_band (out num_ambs) (out validity_flag);
+    return;
+  );
+
+  if not validity_flag then
+    init_band (inout state)
+      (out validity_flag) (out num_ambs)
+      (out ref) (out sats) (out amb_estimates)
+      input_sdiffs receiver_ecef wavelength;
+
+  sdiff_sats := vec i in n_sdiffs -> input_sdiffs[i].sid;
+
+  -- Update the reference
+  if not (contains_sat ref sdiff_sats) then (
+    index := choose_ref state input_sdiffs;
+    if index < 0 then (
+      printf "No reference found! Resetting";
+      init_band (inout state)
+        (out validity_flag) (out num_ambs)
+        (out ref) (out sats) (out amb_estimates)
+        input_sdiffs receiver_ecef wavelength;
+    ) else (
+      printf "new ref: ";
+      print_sat input_sdiffs[index].sid; nl ();
+      change_ref (inout state) input_sdiffs[index].sid;
+    );
+  );
+
+  -- Drop any missing sats
+  drop_sats (inout state) sdiff_sats;
+
+  -- Add any new sats
+  -- TODO choose new ref occasionally?
+  add_sats (inout state) sdiff_sats;
+
+);
+-}
